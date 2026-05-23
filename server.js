@@ -1,42 +1,33 @@
 const express = require('express');
-const { DatabaseSync } = require('node:sqlite');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+/* ── Data file path ── */
+const DATA_PATH = process.env.RENDER
+  ? '/data/db.json'
+  : path.join(__dirname, 'db.json');
+
+/* ── JSON file helpers ── */
+function readDB() {
+  try {
+    return JSON.parse(fs.readFileSync(DATA_PATH, 'utf8'));
+  } catch {
+    return { submissions: [], notes: [], nextId: 1, nextNoteId: 1 };
+  }
+}
+
+function writeDB(data) {
+  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+}
+
 /* ── Middleware ── */
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname)));
-
-/* ── Database setup ── */
-const DB_PATH = process.env.RENDER ? '/data/submissions.db' : path.join(__dirname, 'submissions.db');
-const db = new DatabaseSync(DB_PATH);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS submissions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at  TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
-    status      TEXT    NOT NULL DEFAULT 'new',
-    full_name   TEXT,
-    age         INTEGER,
-    gender      TEXT,
-    mobile      TEXT,
-    email       TEXT,
-    occupation  TEXT,
-    sum_assured TEXT,
-    data        TEXT    NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS notes (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    submission_id  INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
-    created_at     TEXT    NOT NULL DEFAULT (datetime('now', 'localtime')),
-    note           TEXT    NOT NULL
-  );
-`);
 
 /* ═══════════════════════════════════════════
    API: Submit questionnaire
@@ -47,26 +38,27 @@ app.post('/api/submissions', (req, res) => {
     return res.status(400).json({ error: 'Invalid payload' });
   }
 
+  const db = readDB();
   const p = body.personal || {};
-  const full_name = [p.first_name_th, p.last_name_th].filter(Boolean).join(' ') || null;
+  const id = db.nextId++;
 
-  const stmt = db.prepare(`
-    INSERT INTO submissions (full_name, age, gender, mobile, email, occupation, sum_assured, data)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  const record = {
+    id,
+    created_at: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+    status: 'new',
+    full_name: [p.first_name_th, p.last_name_th].filter(Boolean).join(' ') || null,
+    age: p.age ? parseInt(p.age) : null,
+    gender: p.gender || null,
+    mobile: p.mobile || null,
+    email: p.email || null,
+    occupation: body.occupation_finance?.occupation_type || null,
+    sum_assured: body.insurance_needs?.sum_assured || null,
+    data: body
+  };
 
-  const info = stmt.run(
-    full_name,
-    p.age ? parseInt(p.age) : null,
-    p.gender || null,
-    p.mobile || null,
-    p.email || null,
-    body.occupation_finance?.occupation_type || null,
-    body.insurance_needs?.sum_assured || null,
-    JSON.stringify(body)
-  );
-
-  res.json({ id: info.lastInsertRowid, message: 'บันทึกข้อมูลสำเร็จ' });
+  db.submissions.push(record);
+  writeDB(db);
+  res.json({ id, message: 'บันทึกข้อมูลสำเร็จ' });
 });
 
 /* ═══════════════════════════════════════════
@@ -74,46 +66,45 @@ app.post('/api/submissions', (req, res) => {
 ═══════════════════════════════════════════ */
 app.get('/api/submissions', (req, res) => {
   const { status, search, page = 1, limit = 15 } = req.query;
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const db = readDB();
 
-  let where = [];
-  let params = [];
+  let rows = [...db.submissions].reverse();
 
   if (status && status !== 'all') {
-    where.push('status = ?');
-    params.push(status);
+    rows = rows.filter(r => r.status === status);
   }
   if (search) {
-    where.push('(full_name LIKE ? OR mobile LIKE ? OR email LIKE ?)');
-    const q = `%${search}%`;
-    params.push(q, q, q);
+    const q = search.toLowerCase();
+    rows = rows.filter(r =>
+      (r.full_name || '').toLowerCase().includes(q) ||
+      (r.mobile || '').includes(q) ||
+      (r.email || '').toLowerCase().includes(q)
+    );
   }
 
-  const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+  const total = rows.length;
+  const offset = (parseInt(page) - 1) * parseInt(limit);
+  const paged = rows.slice(offset, offset + parseInt(limit)).map(r => ({
+    id: r.id, created_at: r.created_at, status: r.status,
+    full_name: r.full_name, age: r.age, gender: r.gender,
+    mobile: r.mobile, email: r.email, occupation: r.occupation, sum_assured: r.sum_assured
+  }));
 
-  const total = db.prepare(`SELECT COUNT(*) as cnt FROM submissions ${whereClause}`).get(...params).cnt;
-  const rows  = db.prepare(`
-    SELECT id, created_at, status, full_name, age, gender, mobile, email, occupation, sum_assured
-    FROM submissions ${whereClause}
-    ORDER BY created_at DESC
-    LIMIT ? OFFSET ?
-  `).all(...params, parseInt(limit), offset);
-
-  res.json({ total, page: parseInt(page), limit: parseInt(limit), data: rows });
+  res.json({ total, page: parseInt(page), limit: parseInt(limit), data: paged });
 });
 
 /* ═══════════════════════════════════════════
    API: Get single submission (full detail)
 ═══════════════════════════════════════════ */
 app.get('/api/submissions/:id', (req, res) => {
-  const row = db.prepare('SELECT * FROM submissions WHERE id = ?').get(req.params.id);
+  const db = readDB();
+  const row = db.submissions.find(r => r.id === parseInt(req.params.id));
   if (!row) return res.status(404).json({ error: 'Not found' });
 
-  const notes = db.prepare('SELECT * FROM notes WHERE submission_id = ? ORDER BY created_at DESC').all(row.id);
-  row.parsed = JSON.parse(row.data);
-  row.notes  = notes;
-  delete row.data;
-  res.json(row);
+  const notes = db.notes.filter(n => n.submission_id === row.id)
+    .sort((a, b) => b.id - a.id);
+
+  res.json({ ...row, parsed: row.data, notes, data: undefined });
 });
 
 /* ═══════════════════════════════════════════
@@ -124,7 +115,12 @@ app.patch('/api/submissions/:id/status', (req, res) => {
   const valid = ['new', 'reviewing', 'contacted', 'approved', 'rejected'];
   if (!valid.includes(status)) return res.status(400).json({ error: 'Invalid status' });
 
-  db.prepare('UPDATE submissions SET status = ? WHERE id = ?').run(status, req.params.id);
+  const db = readDB();
+  const row = db.submissions.find(r => r.id === parseInt(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Not found' });
+
+  row.status = status;
+  writeDB(db);
   res.json({ ok: true });
 });
 
@@ -135,21 +131,41 @@ app.post('/api/submissions/:id/notes', (req, res) => {
   const { note } = req.body;
   if (!note?.trim()) return res.status(400).json({ error: 'Note required' });
 
-  const info = db.prepare('INSERT INTO notes (submission_id, note) VALUES (?, ?)').run(req.params.id, note.trim());
-  res.json({ id: info.lastInsertRowid });
+  const db = readDB();
+  const id = db.nextNoteId++;
+  db.notes.push({
+    id,
+    submission_id: parseInt(req.params.id),
+    created_at: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+    note: note.trim()
+  });
+  writeDB(db);
+  res.json({ id });
 });
 
 /* ═══════════════════════════════════════════
    API: Stats
 ═══════════════════════════════════════════ */
 app.get('/api/stats', (req, res) => {
-  const total        = db.prepare("SELECT COUNT(*) as n FROM submissions").get().n;
-  const today        = db.prepare("SELECT COUNT(*) as n FROM submissions WHERE date(created_at) = date('now','localtime')").get().n;
-  const byStatus     = db.prepare("SELECT status, COUNT(*) as n FROM submissions GROUP BY status").all();
-  const byOccupation = db.prepare("SELECT occupation, COUNT(*) as n FROM submissions GROUP BY occupation ORDER BY n DESC LIMIT 5").all();
-  const avgAge       = db.prepare("SELECT ROUND(AVG(age),1) as avg FROM submissions WHERE age IS NOT NULL").get().avg;
+  const db = readDB();
+  const subs = db.submissions;
 
-  res.json({ total, today, byStatus, byOccupation, avgAge });
+  const today = new Date().toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
+  const todayCount = subs.filter(r => r.created_at.startsWith(today.split('/').reverse().join('/'))).length;
+
+  const byStatus = Object.entries(
+    subs.reduce((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {})
+  ).map(([status, n]) => ({ status, n }));
+
+  const byOccupation = Object.entries(
+    subs.reduce((acc, r) => { const k = r.occupation || 'other'; acc[k] = (acc[k] || 0) + 1; return acc; }, {})
+  ).map(([occupation, n]) => ({ occupation, n }))
+    .sort((a, b) => b.n - a.n).slice(0, 5);
+
+  const ages = subs.map(r => r.age).filter(Boolean);
+  const avgAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length * 10) / 10 : null;
+
+  res.json({ total: subs.length, today: todayCount, byStatus, byOccupation, avgAge });
 });
 
 /* ── Serve HTML ── */
@@ -159,5 +175,6 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.listen(PORT, () => {
   console.log(`\n🚀 Server: http://localhost:${PORT}`);
   console.log(`   Form:   http://localhost:${PORT}/`);
-  console.log(`   Admin:  http://localhost:${PORT}/admin\n`);
+  console.log(`   Admin:  http://localhost:${PORT}/admin`);
+  console.log(`   DB:     ${DATA_PATH}\n`);
 });
