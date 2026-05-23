@@ -4,8 +4,8 @@
   "description": "Life Insurance Customer Questionnaire System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node --experimental-sqlite server.js",
+    "dev": "node --experimental-sqlite server.js"
   },
   "engines": {
     "node": ">=22.5.0"
