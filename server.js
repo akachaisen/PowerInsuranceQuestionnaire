@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const { matchProducts } = require('./matcher');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -166,6 +167,34 @@ app.get('/api/stats', (req, res) => {
   const avgAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length * 10) / 10 : null;
 
   res.json({ total: subs.length, today: todayCount, byStatus, byOccupation, avgAge });
+});
+
+/* ═══════════════════════════════════════════
+   API: Product Match — by submission ID
+═══════════════════════════════════════════ */
+app.get('/api/match/:id', (req, res) => {
+  const db = readDB();
+  const row = db.submissions.find(r => r.id === parseInt(req.params.id));
+  if (!row) return res.status(404).json({ error: 'Not found' });
+
+  const matches = matchProducts(row.data);
+  res.json({
+    id: row.id,
+    name: row.full_name,
+    age: row.age,
+    matches
+  });
+});
+
+/* ═══════════════════════════════════════════
+   API: Product Match — from raw FNA payload
+═══════════════════════════════════════════ */
+app.post('/api/match', (req, res) => {
+  if (!req.body || !req.body.personal) {
+    return res.status(400).json({ error: 'Invalid payload' });
+  }
+  const matches = matchProducts(req.body);
+  res.json({ matches });
 });
 
 /* ── Serve HTML ── */

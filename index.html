@@ -272,11 +272,117 @@
     #thankyou {
       display: none;
       text-align: center;
-      padding: 60px 24px;
+      padding: 40px 24px 60px;
     }
     #thankyou .checkmark { font-size: 64px; }
     #thankyou h2 { font-size: 22px; color: var(--success); margin: 16px 0 8px; }
     #thankyou p { color: var(--text-muted); font-size: 14px; }
+
+    /* ── Product Recommendations ── */
+    #recommendations {
+      margin-top: 36px;
+      text-align: left;
+    }
+    #recommendations h3 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    #recommendations .rec-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .rec-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .rec-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .rec-icon {
+      font-size: 28px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .rec-title-area { flex: 1; }
+    .rec-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+    }
+    .rec-cat {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .rec-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .rec-badge.excellent { background: #d4edda; color: #155724; }
+    .rec-badge.good      { background: #cce5ff; color: #004085; }
+    .rec-badge.ok        { background: #fff3cd; color: #856404; }
+    .rec-match-bar {
+      height: 6px;
+      background: #e9ecef;
+      border-radius: 3px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+    .rec-match-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--primary-light), var(--primary));
+    }
+    .rec-highlight {
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .rec-reasons {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .rec-reasons li {
+      font-size: 12px;
+      color: #2e7d32;
+      line-height: 1.8;
+    }
+    .rec-pairing-note {
+      font-size: 11px;
+      color: #e65100;
+      margin-top: 8px;
+      padding: 6px 8px;
+      background: #fff3e0;
+      border-radius: 6px;
+    }
+    .rec-tax-note {
+      font-size: 11px;
+      color: #1565c0;
+      margin-top: 6px;
+    }
+    #rec-loading {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
 
     /* ── Divider ── */
     .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
@@ -1131,6 +1237,17 @@
     <div class="checkmark">✅</div>
     <h2>ขอบคุณสำหรับข้อมูลของท่าน</h2>
     <p>เจ้าหน้าที่จะติดต่อกลับภายใน 1-2 วันทำการ<br />เพื่อนำเสนอแผนประกันที่เหมาะสมกับท่าน</p>
+
+    <!-- Product Recommendations -->
+    <div id="recommendations" style="display:none">
+      <hr style="border:none;border-top:1px solid #e0e0e0;margin:24px 0" />
+      <h3>🎯 สินค้าที่เหมาะสมสำหรับท่าน</h3>
+      <p class="rec-subtitle">จากข้อมูลที่กรอก เราคัดเลือกสินค้าที่ตรงกับความต้องการของท่านมากที่สุด</p>
+      <div id="rec-list"><div id="rec-loading">⏳ กำลังวิเคราะห์ข้อมูล...</div></div>
+      <p style="font-size:11px;color:#999;margin-top:14px;text-align:center">
+        * สินค้าที่แนะนำเป็นเพียงข้อมูลเบื้องต้น เจ้าหน้าที่จะนำเสนอรายละเอียดเพิ่มเติม
+      </p>
+    </div>
   </div>
 
 </main>
@@ -1272,23 +1389,88 @@
     btn.textContent = 'กำลังบันทึก...';
 
     const data = collectFormData();
+    let submissionId = null;
 
     try {
-      const res = await fetch('http://localhost:3001/api/submissions', {
+      const res = await fetch('/api/submissions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
       if (!res.ok) throw new Error('Server error');
       const result = await res.json();
-      console.log('Saved with id:', result.id);
+      submissionId = result.id;
+      console.log('Saved with id:', submissionId);
     } catch (e) {
-      console.warn('Could not reach server, saving locally:', e.message);
+      console.warn('Could not reach server:', e.message);
     }
 
     document.querySelectorAll('.section-card').forEach(s => s.style.display = 'none');
     document.getElementById('progress-wrap').style.display = 'none';
     document.getElementById('thankyou').style.display = 'block';
+
+    // Load product recommendations
+    if (submissionId) {
+      document.getElementById('recommendations').style.display = 'block';
+      try {
+        const mRes = await fetch('/api/match/' + submissionId);
+        const mData = await mRes.json();
+        renderRecommendations(mData.matches);
+      } catch (e) {
+        document.getElementById('rec-list').innerHTML =
+          '<p style="color:#999;font-size:13px;text-align:center">ไม่สามารถโหลดคำแนะนำได้ในขณะนี้</p>';
+      }
+    } else {
+      // Fallback: match from form data directly
+      try {
+        const mRes = await fetch('/api/match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const mData = await mRes.json();
+        document.getElementById('recommendations').style.display = 'block';
+        renderRecommendations(mData.matches);
+      } catch (e) { /* silently skip */ }
+    }
+  }
+
+  function renderRecommendations (matches) {
+    const el = document.getElementById('rec-list');
+    if (!matches || matches.length === 0) {
+      el.innerHTML = '<p style="color:#999;font-size:13px;text-align:center">ยังไม่มีข้อมูลเพียงพอสำหรับการแนะนำสินค้า</p>';
+      return;
+    }
+
+    const badgeClass = m =>
+      m.match_label === 'เหมาะอย่างยิ่ง' ? 'excellent' :
+      m.match_label === 'เหมาะสม'         ? 'good'      : 'ok';
+
+    el.innerHTML = matches.map(m => `
+      <div class="rec-card">
+        <div class="rec-card-header">
+          <div class="rec-icon">${m.icon}</div>
+          <div class="rec-title-area">
+            <div class="rec-name">${m.name_th}</div>
+            <div class="rec-cat">${m.category_th}</div>
+          </div>
+          <span class="rec-badge ${badgeClass(m)}">${m.match_label}</span>
+        </div>
+        <div class="rec-match-bar">
+          <div class="rec-match-bar-fill" style="width:${m.match_pct}%"></div>
+        </div>
+        <div class="rec-highlight">${m.highlight}</div>
+        <ul class="rec-reasons">
+          ${m.reasons.map(r => `<li>${r}</li>`).join('')}
+        </ul>
+        ${m.tax_deduction > 0
+          ? `<div class="rec-tax-note">💙 ลดหย่อนภาษีได้ถึง ${m.tax_deduction.toLocaleString()} บาท/ปี</div>`
+          : ''}
+        ${m.requires_pairing
+          ? `<div class="rec-pairing-note">⚠️ สัญญาเพิ่มเติม — ต้องซื้อพร้อมประกันชีวิตหลัก</div>`
+          : ''}
+      </div>
+    `).join('');
   }
 
   function collectFormData() {

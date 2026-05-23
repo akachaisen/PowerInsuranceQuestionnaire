@@ -156,6 +156,42 @@
     }
     #drawer-close:hover { background: var(--bg); }
     #drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+
+    /* ── Product Recommendations in Drawer ── */
+    .match-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+    .match-cards { display: flex; flex-direction: column; gap: 10px; }
+    .match-card {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 13px 14px;
+    }
+    .match-card-top {
+      display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;
+    }
+    .match-card-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+    .match-card-info { flex: 1; }
+    .match-card-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .match-card-cat  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .match-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; flex-shrink: 0;
+    }
+    .match-badge.excellent { background: #d4edda; color: #155724; }
+    .match-badge.good      { background: #cce5ff; color: #004085; }
+    .match-badge.ok        { background: #fff3cd; color: #856404; }
+    .match-bar {
+      height: 5px; background: #e9ecef; border-radius: 3px; margin-bottom: 8px; overflow: hidden;
+    }
+    .match-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--primary-light, #4fb3f6), var(--primary, #1976d2));
+    }
+    .match-highlight { font-size: 12px; color: #444; margin-bottom: 6px; line-height: 1.5; }
+    .match-reasons   { list-style: none; padding: 0; margin: 0; }
+    .match-reasons li { font-size: 11px; color: #2e7d32; line-height: 1.8; }
+    .match-pairing-note {
+      font-size: 11px; color: #e65100; margin-top: 6px;
+      padding: 4px 8px; background: #fff3e0; border-radius: 5px;
+    }
+    .match-tax-note { font-size: 11px; color: #1565c0; margin-top: 4px; }
     #drawer-footer {
       padding: 14px 22px; border-top: 1px solid var(--border);
       display: flex; gap: 10px; flex-shrink: 0; align-items: flex-start;
@@ -340,7 +376,9 @@
 </div>
 
 <script>
-  const API = 'http://localhost:3001/api';
+  const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3001/api'
+    : '/api';
   let currentPage = 1;
   let currentStatus = 'all';
   let currentSearch = '';
@@ -482,11 +520,16 @@
     document.getElementById('drawer-title').textContent = 'กำลังโหลด...';
 
     try {
-      const res = await fetch(`${API}/submissions/${id}`);
+      const [res, matchRes] = await Promise.all([
+        fetch(`${API}/submissions/${id}`),
+        fetch(`${API}/match/${id}`)
+      ]);
       const d = await res.json();
+      const matchData = matchRes.ok ? await matchRes.json() : null;
+
       document.getElementById('drawer-title').textContent = d.full_name || 'ผู้ตอบแบบสอบถาม #' + id;
       renderStatusSelect(d.status);
-      renderDetail(d);
+      renderDetail(d, matchData);
     } catch (e) {
       document.getElementById('drawer-body').innerHTML = '<p style="color:red;padding:20px">โหลดข้อมูลไม่สำเร็จ</p>';
     }
@@ -523,7 +566,7 @@
     openDrawer(currentSubmissionId);
   }
 
-  function renderDetail(d) {
+  function renderDetail(d, matchData) {
     const p = d.parsed?.personal || {};
     const h = d.parsed?.health || {};
     const f = d.parsed?.occupation_finance || {};
@@ -652,6 +695,12 @@
         </div>
       </div>
 
+      <!-- Product Recommendations -->
+      <div class="detail-section match-section">
+        <h3>🎯 สินค้าที่แนะนำ</h3>
+        ${renderMatchCards(matchData)}
+      </div>
+
       <!-- Notes -->
       <div class="detail-section">
         <h3>บันทึกของเจ้าหน้าที่</h3>
@@ -664,6 +713,39 @@
           : '<p style="color:var(--muted);font-size:12px">ยังไม่มีบันทึก</p>'}
       </div>
     `;
+  }
+
+  /* ── Product Match Cards ── */
+  function renderMatchCards(matchData) {
+    const matches = matchData?.matches;
+    if (!matches || matches.length === 0) {
+      return '<p style="color:var(--muted);font-size:12px">ยังไม่มีข้อมูลเพียงพอสำหรับการวิเคราะห์</p>';
+    }
+
+    const badgeClass = m =>
+      m.match_label === 'เหมาะอย่างยิ่ง' ? 'excellent' :
+      m.match_label === 'เหมาะสม'         ? 'good'      : 'ok';
+
+    return `<div class="match-cards">
+      ${matches.map(m => `
+        <div class="match-card">
+          <div class="match-card-top">
+            <div class="match-card-icon">${m.icon}</div>
+            <div class="match-card-info">
+              <div class="match-card-name">${m.name_th}</div>
+              <div class="match-card-cat">${m.category_th} · ${m.product_type === 'rider' ? 'สัญญาเพิ่มเติม' : 'กรมธรรม์หลัก'}</div>
+            </div>
+            <span class="match-badge ${badgeClass(m)}">${m.match_label} ${m.match_pct}%</span>
+          </div>
+          <div class="match-bar">
+            <div class="match-bar-fill" style="width:${m.match_pct}%"></div>
+          </div>
+          <div class="match-highlight">${m.highlight}</div>
+          <ul class="match-reasons">${m.reasons.map(r => `<li>${r}</li>`).join('')}</ul>
+          ${m.tax_deduction > 0 ? `<div class="match-tax-note">💙 ลดหย่อนภาษี ${m.tax_deduction.toLocaleString()} บาท/ปี</div>` : ''}
+          ${m.requires_pairing ? `<div class="match-pairing-note">⚠️ ต้องซื้อพร้อมประกันชีวิตหลัก</div>` : ''}
+        </div>`).join('')}
+    </div>`;
   }
 
   /* ── Search debounce ── */
