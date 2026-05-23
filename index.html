@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>แบบสอบถามลูกค้าประกันชีวิต</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #1a4f8a;
+      --primary-light: #2d6db5;
+      --accent: #e8a020;
+      --bg: #f4f6fa;
+      --card: #ffffff;
+      --border: #d0d7e3;
+      --text: #1e2d40;
+      --text-muted: #6b7a8f;
+      --error: #c0392b;
+      --success: #27ae60;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: 'Sarabun', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: #fff;
+      padding: 32px 24px 28px;
+      text-align: center;
+    }
+    header .logo { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+    header .subtitle { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+
+    /* ── Progress bar ── */
+    #progress-wrap {
+      background: var(--primary);
+      padding: 0 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #step-labels {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.7);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .step-dot.active { background: var(--accent); color: #fff; }
+    .step-dot.done { background: rgba(255,255,255,0.6); color: var(--primary); }
+    #progress-bar-bg {
+      width: 100%; max-width: 560px;
+      height: 6px; background: rgba(255,255,255,0.25); border-radius: 3px;
+    }
+    #progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s; }
+    #progress-text { color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 6px; }
+
+    /* ── Main layout ── */
+    main {
+      max-width: 720px;
+      margin: 28px auto;
+      padding: 0 16px 60px;
+    }
+
+    /* ── Section card ── */
+    .section-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      display: none;
+    }
+    .section-card.active { display: block; animation: fadeIn .3s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid var(--bg);
+    }
+    .section-icon {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+    }
+    .section-title { font-size: 18px; font-weight: 700; color: var(--primary); }
+    .section-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Fields ── */
+    .field-row { display: grid; gap: 16px; margin-bottom: 16px; }
+    .field-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .field-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 540px) {
+      .field-row.cols-2, .field-row.cols-3 { grid-template-columns: 1fr; }
+      .section-card { padding: 20px 18px; }
+    }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; font-weight: 600; color: var(--text); }
+    .field label .required { color: var(--error); margin-left: 2px; }
+    .field label .hint { font-weight: 400; color: var(--text-muted); font-size: 11px; }
+
+    .field input, .field select, .field textarea {
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(45,109,181,0.12);
+    }
+    .field input.error, .field select.error { border-color: var(--error); }
+    .field .error-msg { font-size: 11px; color: var(--error); display: none; }
+    .field.has-error .error-msg { display: block; }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ── Radio / Checkbox groups ── */
+    .radio-group, .check-group {
+      display: flex; flex-wrap: wrap; gap: 10px;
+    }
+    .radio-group label, .check-group label {
+      display: flex; align-items: center; gap: 6px;
+      cursor: pointer;
+      font-size: 13px; font-weight: 400;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      transition: all .2s;
+      user-select: none;
+    }
+    .radio-group label:hover, .check-group label:hover {
+      border-color: var(--primary-light);
+      background: rgba(45,109,181,0.05);
+    }
+    .radio-group input[type=radio], .check-group input[type=checkbox] {
+      width: 15px; height: 15px; border: none; padding: 0;
+      accent-color: var(--primary);
+    }
+    .radio-group input:checked + span, .check-group input:checked + span {
+      color: var(--primary); font-weight: 600;
+    }
+
+    /* ── Conditional block ── */
+    .conditional { display: none; margin-top: 14px; }
+    .conditional.visible { display: block; animation: fadeIn .25s; }
+    .conditional-box {
+      background: #f7f9fd;
+      border: 1px solid #c6d5eb;
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+    .conditional-box > p {
+      font-size: 12px; color: var(--text-muted); margin-bottom: 12px; font-style: italic;
+    }
+
+    /* ── Beneficiary block ── */
+    #beneficiary-list { display: flex; flex-direction: column; gap: 16px; }
+    .beneficiary-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      position: relative;
+    }
+    .beneficiary-item h4 {
+      font-size: 13px; color: var(--primary); margin-bottom: 12px;
+    }
+    .btn-remove {
+      position: absolute; top: 12px; right: 12px;
+      background: none; border: none;
+      color: var(--error); cursor: pointer; font-size: 18px;
+      line-height: 1; padding: 2px 6px; border-radius: 4px;
+    }
+    .btn-remove:hover { background: #fdf0ef; }
+
+    /* ── Info box ── */
+    .info-box {
+      background: #fffbf0;
+      border: 1px solid #f5d98a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #7a5c00;
+      margin-bottom: 18px;
+    }
+    .info-box strong { display: block; margin-bottom: 3px; }
+
+    /* ── Buttons ── */
+    .btn-row {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 28px; gap: 12px;
+    }
+    button {
+      font-family: inherit; cursor: pointer;
+      border-radius: 8px; border: none;
+      font-size: 14px; font-weight: 600;
+      padding: 11px 26px;
+      transition: all .2s;
+    }
+    .btn-next {
+      background: var(--primary); color: #fff;
+      margin-left: auto;
+    }
+    .btn-next:hover { background: var(--primary-light); }
+    .btn-back {
+      background: #fff; color: var(--primary);
+      border: 1px solid var(--border);
+    }
+    .btn-back:hover { background: var(--bg); }
+    .btn-add {
+      background: #eef4fc; color: var(--primary);
+      border: 1px solid #c6d5eb;
+      padding: 8px 18px; font-size: 13px;
+    }
+    .btn-add:hover { background: #dce8f7; }
+    .btn-submit {
+      background: var(--success); color: #fff;
+      padding: 12px 36px; font-size: 15px;
+    }
+    .btn-submit:hover { background: #219a52; }
+
+    /* ── Summary page ── */
+    #summary-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      display: none;
+    }
+    #summary-section.active { display: block; }
+    .summary-group { margin-bottom: 24px; }
+    .summary-group h3 {
+      font-size: 14px; color: var(--primary); font-weight: 700;
+      border-bottom: 1px solid var(--bg);
+      padding-bottom: 6px; margin-bottom: 12px;
+    }
+    .summary-row {
+      display: grid; grid-template-columns: 180px 1fr;
+      gap: 6px 12px; font-size: 13px; margin-bottom: 6px;
+    }
+    .summary-row dt { color: var(--text-muted); }
+    .summary-row dd { font-weight: 500; }
+
+    /* ── Thank-you ── */
+    #thankyou {
+      display: none;
+      text-align: center;
+      padding: 60px 24px;
+    }
+    #thankyou .checkmark { font-size: 64px; }
+    #thankyou h2 { font-size: 22px; color: var(--success); margin: 16px 0 8px; }
+    #thankyou p { color: var(--text-muted); font-size: 14px; }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+    /* ── Consent ── */
+    .consent-box {
+      background: #f7f9fd; border: 1px solid #c6d5eb;
+      border-radius: 8px; padding: 16px 18px; font-size: 12px;
+      color: var(--text-muted); line-height: 1.7; margin-bottom: 16px;
+    }
+    .consent-box h4 { color: var(--text); font-size: 13px; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🛡️ แบบสอบถามลูกค้าประกันชีวิต</div>
+  <div class="subtitle">Life Insurance Customer Questionnaire — กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง</div>
+</header>
+
+<div id="progress-wrap">
+  <div id="step-labels">
+    <div class="step-dot active" data-step="1">1</div>
+    <div class="step-dot" data-step="2">2</div>
+    <div class="step-dot" data-step="3">3</div>
+    <div class="step-dot" data-step="4">4</div>
+    <div class="step-dot" data-step="5">5</div>
+    <div class="step-dot" data-step="6">6</div>
+    <div class="step-dot" data-step="7">7</div>
+  </div>
+  <div id="progress-bar-bg"><div id="progress-bar" style="width:14%"></div></div>
+  <div id="progress-text">ขั้นตอนที่ 1 จาก 7</div>
+</div>
+
+<main>
+
+  <!-- ════════════════════════════════════════
+       SECTION 1 · ข้อมูลส่วนบุคคล
+  ════════════════════════════════════════ -->
+  <div class="section-card active" id="step-1">
+    <div class="section-header">
+      <div class="section-icon">👤</div>
+      <div>
+        <div class="section-title">ข้อมูลส่วนบุคคล</div>
+        <div class="section-desc">Personal Information — ข้อมูลพื้นฐานของผู้สมัครทำประกัน</div>
+      </div>
+    </div>
+
+    <div class="field-row cols-3">
+      <div class="field">
+        <label>คำนำหน้า <span class="required">*</span></label>
+        <select id="title" required>
+          <option value="">-- เลือก --</option>
+          <option>นาย</option>
+          <option>นาง</option>
+          <option>นางสาว</option>
+          <option>ดร.</option>
+          <option>อื่นๆ</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกคำนำหน้า</span>
+      </div>
+      <div class="field">
+        <label>ชื่อ (ภาษาไทย) <span class="required">*</span></label>
+        <input type="text" id="first_name_th" placeholder="เช่น สมชาย" required />
+        <span class="error-msg">กรุณากรอกชื่อ</span>
+      </div>
+      <div class="field">
+        <label>นามสกุล (ภาษาไทย) <span class="required">*</span></label>
+        <input type="text" id="last_name_th" placeholder="เช่น ใจดี" required />
+        <span class="error-msg">กรุณากรอกนามสกุล</span>
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>ชื่อ (ภาษาอังกฤษ)</label>
+        <input type="text" id="first_name_en" placeholder="SOMCHAI" />
+      </div>
+      <div class="field">
+        <label>นามสกุล (ภาษาอังกฤษ)</label>
+        <input type="text" id="last_name_en" placeholder="JAIDEE" />
+      </div>
+    </div>
+
+    <div class="field-row cols-3">
+      <div class="field">
+        <label>วันเกิด <span class="required">*</span></label>
+        <input type="date" id="dob" required />
+        <span class="error-msg">กรุณาระบุวันเกิด</span>
+      </div>
+      <div class="field">
+        <label>อายุ (ปี) <span class="hint">คำนวณอัตโนมัติ</span></label>
+        <input type="number" id="age" readonly placeholder="—" style="background:#f4f6fa" />
+      </div>
+      <div class="field">
+        <label>เพศ <span class="required">*</span></label>
+        <select id="gender" required>
+          <option value="">-- เลือก --</option>
+          <option value="M">ชาย</option>
+          <option value="F">หญิง</option>
+          <option value="O">อื่นๆ</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกเพศ</span>
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>เลขบัตรประจำตัวประชาชน <span class="required">*</span></label>
+        <input type="text" id="national_id" maxlength="13" placeholder="x-xxxx-xxxxx-xx-x" required />
+        <span class="error-msg">กรุณากรอกเลขบัตรประชาชน 13 หลัก</span>
+      </div>
+      <div class="field">
+        <label>สัญชาติ <span class="required">*</span></label>
+        <select id="nationality" required>
+          <option value="">-- เลือก --</option>
+          <option value="TH" selected>ไทย</option>
+          <option value="OTHER">อื่นๆ</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกสัญชาติ</span>
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>สถานภาพสมรส <span class="required">*</span></label>
+        <select id="marital_status" required>
+          <option value="">-- เลือก --</option>
+          <option>โสด</option>
+          <option>สมรส</option>
+          <option>หย่าร้าง</option>
+          <option>หม้าย</option>
+          <option>แยกกันอยู่</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกสถานภาพ</span>
+      </div>
+      <div class="field">
+        <label>จำนวนบุตร</label>
+        <input type="number" id="children" min="0" max="20" placeholder="0" value="0" />
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <div class="field-row">
+      <div class="field">
+        <label>ที่อยู่ปัจจุบัน <span class="required">*</span></label>
+        <textarea id="address" rows="2" placeholder="บ้านเลขที่ / หมู่บ้าน / ซอย / ถนน" required></textarea>
+        <span class="error-msg">กรุณากรอกที่อยู่</span>
+      </div>
+    </div>
+
+    <div class="field-row cols-3">
+      <div class="field">
+        <label>แขวง/ตำบล <span class="required">*</span></label>
+        <input type="text" id="sub_district" required />
+        <span class="error-msg">กรุณากรอกแขวง/ตำบล</span>
+      </div>
+      <div class="field">
+        <label>เขต/อำเภอ <span class="required">*</span></label>
+        <input type="text" id="district" required />
+        <span class="error-msg">กรุณากรอกเขต/อำเภอ</span>
+      </div>
+      <div class="field">
+        <label>จังหวัด <span class="required">*</span></label>
+        <input type="text" id="province" required />
+        <span class="error-msg">กรุณากรอกจังหวัด</span>
+      </div>
+    </div>
+
+    <div class="field-row cols-3">
+      <div class="field">
+        <label>รหัสไปรษณีย์ <span class="required">*</span></label>
+        <input type="text" id="postal_code" maxlength="5" placeholder="10110" required />
+        <span class="error-msg">กรุณากรอกรหัสไปรษณีย์</span>
+      </div>
+      <div class="field">
+        <label>โทรศัพท์มือถือ <span class="required">*</span></label>
+        <input type="tel" id="mobile" placeholder="08x-xxx-xxxx" required />
+        <span class="error-msg">กรุณากรอกเบอร์โทรศัพท์</span>
+      </div>
+      <div class="field">
+        <label>อีเมล</label>
+        <input type="email" id="email" placeholder="example@email.com" />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-next" onclick="goNext(1)">ถัดไป →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SECTION 2 · ข้อมูลสุขภาพ
+  ════════════════════════════════════════ -->
+  <div class="section-card" id="step-2">
+    <div class="section-header">
+      <div class="section-icon">🏥</div>
+      <div>
+        <div class="section-title">ข้อมูลสุขภาพ</div>
+        <div class="section-desc">Health Information — ใช้ประกอบการพิจารณารับประกัน (Underwriting)</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>⚠️ หมายเหตุสำคัญ</strong>
+      กรุณาตอบคำถามทุกข้ออย่างตรงไปตรงมา การให้ข้อมูลไม่ครบหรือไม่ถูกต้องอาจส่งผลต่อความคุ้มครองของกรมธรรม์
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>น้ำหนัก (กิโลกรัม) <span class="required">*</span></label>
+        <input type="number" id="weight" min="20" max="300" step="0.1" placeholder="65" required />
+        <span class="error-msg">กรุณากรอกน้ำหนัก</span>
+      </div>
+      <div class="field">
+        <label>ส่วนสูง (เซนติเมตร) <span class="required">*</span></label>
+        <input type="number" id="height" min="100" max="250" step="0.1" placeholder="170" required />
+        <span class="error-msg">กรุณากรอกส่วนสูง</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>ดัชนีมวลกาย BMI <span class="hint">คำนวณอัตโนมัติ</span></label>
+      <input type="text" id="bmi" readonly placeholder="—" style="background:#f4f6fa; width:200px" />
+    </div>
+
+    <hr class="divider" />
+    <p style="font-size:13px; font-weight:600; margin-bottom:12px; color:var(--primary)">พฤติกรรมสุขภาพ</p>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>การสูบบุหรี่ <span class="required">*</span></label>
+        <div class="radio-group" id="smoking">
+          <label><input type="radio" name="smoking" value="never" checked /><span>ไม่เคยสูบ</span></label>
+          <label><input type="radio" name="smoking" value="ex" /><span>เคยสูบ (เลิกแล้ว)</span></label>
+          <label><input type="radio" name="smoking" value="current" /><span>สูบอยู่</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>การดื่มแอลกอฮอล์ <span class="required">*</span></label>
+        <div class="radio-group" id="alcohol">
+          <label><input type="radio" name="alcohol" value="never" checked /><span>ไม่ดื่ม</span></label>
+          <label><input type="radio" name="alcohol" value="social" /><span>ดื่มบางครั้ง</span></label>
+          <label><input type="radio" name="alcohol" value="regular" /><span>ดื่มประจำ</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conditional: smoking details -->
+    <div class="conditional" id="cond-smoking">
+      <div class="conditional-box">
+        <p>กรุณาระบุรายละเอียดการสูบบุหรี่</p>
+        <div class="field-row cols-2">
+          <div class="field">
+            <label>จำนวนมวน/วัน</label>
+            <input type="number" id="cig_per_day" min="0" placeholder="เช่น 10" />
+          </div>
+          <div class="field">
+            <label>ระยะเวลาที่สูบ (ปี)</label>
+            <input type="number" id="cig_years" min="0" placeholder="เช่น 5" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row cols-2" style="margin-top:16px">
+      <div class="field">
+        <label>การออกกำลังกาย</label>
+        <select id="exercise">
+          <option value="">-- เลือก --</option>
+          <option value="none">ไม่ออกกำลังกาย</option>
+          <option value="occasional">บางครั้ง (น้อยกว่า 1 ครั้ง/สัปดาห์)</option>
+          <option value="moderate">สม่ำเสมอ (1-3 ครั้ง/สัปดาห์)</option>
+          <option value="active">ออกกำลังกายหนัก (4+ ครั้ง/สัปดาห์)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>กิจกรรมเสี่ยงสูง</label>
+        <div class="check-group">
+          <label><input type="checkbox" name="risky_activity" value="racing" /><span>แข่งรถ/มอเตอร์สปอร์ต</span></label>
+          <label><input type="checkbox" name="risky_activity" value="diving" /><span>ดำน้ำลึก</span></label>
+          <label><input type="checkbox" name="risky_activity" value="climbing" /><span>ปีนเขา</span></label>
+          <label><input type="checkbox" name="risky_activity" value="sky" /><span>กระโดดร่ม</span></label>
+          <label><input type="checkbox" name="risky_activity" value="none" /><span>ไม่มี</span></label>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <p style="font-size:13px; font-weight:600; margin-bottom:12px; color:var(--primary)">ประวัติโรคและการรักษา</p>
+
+    <div class="field">
+      <label>ท่านเคยได้รับการวินิจฉัยหรือรักษาโรคต่อไปนี้หรือไม่? <span class="required">*</span></label>
+      <div class="check-group" id="disease_history" style="margin-top:8px">
+        <label><input type="checkbox" name="disease" value="heart" /><span>โรคหัวใจ / หลอดเลือด</span></label>
+        <label><input type="checkbox" name="disease" value="diabetes" /><span>เบาหวาน</span></label>
+        <label><input type="checkbox" name="disease" value="hypertension" /><span>ความดันโลหิตสูง</span></label>
+        <label><input type="checkbox" name="disease" value="cancer" /><span>มะเร็ง</span></label>
+        <label><input type="checkbox" name="disease" value="stroke" /><span>โรคหลอดเลือดสมอง</span></label>
+        <label><input type="checkbox" name="disease" value="kidney" /><span>โรคไต</span></label>
+        <label><input type="checkbox" name="disease" value="liver" /><span>โรคตับ</span></label>
+        <label><input type="checkbox" name="disease" value="lung" /><span>โรคปอด / ระบบทางเดินหายใจ</span></label>
+        <label><input type="checkbox" name="disease" value="mental" /><span>โรคจิตเวช</span></label>
+        <label><input type="checkbox" name="disease" value="hiv" /><span>HIV / AIDS</span></label>
+        <label><input type="checkbox" name="disease" value="none" /><span>ไม่มี</span></label>
+      </div>
+    </div>
+
+    <!-- Conditional: disease details -->
+    <div class="conditional" id="cond-disease">
+      <div class="conditional-box" style="margin-top:12px">
+        <p>กรุณาระบุรายละเอียดโรค / ปีที่วินิจฉัย / สถานะการรักษาปัจจุบัน</p>
+        <div class="field">
+          <textarea id="disease_detail" rows="3" placeholder="เช่น เบาหวานชนิดที่ 2 วินิจฉัย พ.ศ. 2561 กำลังรักษาด้วยยา Metformin"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row cols-2" style="margin-top:16px">
+      <div class="field">
+        <label>เคยผ่าตัดหรือเข้าพักรักษาในโรงพยาบาลใน 5 ปีที่ผ่านมา? <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="hospitalized" value="no" checked /><span>ไม่เคย</span></label>
+          <label><input type="radio" name="hospitalized" value="yes" /><span>เคย</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>กำลังรับประทานยาใด ๆ อยู่หรือไม่? <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="on_medication" value="no" checked /><span>ไม่มี</span></label>
+          <label><input type="radio" name="on_medication" value="yes" /><span>มี</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="conditional" id="cond-hospitalized">
+      <div class="conditional-box">
+        <p>กรุณาระบุรายละเอียดการพักรักษาหรือผ่าตัด</p>
+        <div class="field"><textarea id="hospitalized_detail" rows="2" placeholder="เช่น ผ่าตัดไส้ติ่ง พ.ศ. 2565 โรงพยาบาล..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="conditional" id="cond-medication">
+      <div class="conditional-box">
+        <p>กรุณาระบุชื่อยา/วัตถุประสงค์การใช้</p>
+        <div class="field"><textarea id="medication_detail" rows="2" placeholder="เช่น ยาความดัน Amlodipine 5mg, ยาลดไขมัน..."></textarea></div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <p style="font-size:13px; font-weight:600; margin-bottom:12px; color:var(--primary)">ประวัติครอบครัว</p>
+    <div class="field">
+      <label>บิดา มารดา หรือพี่น้องเป็นโรคต่อไปนี้หรือไม่?</label>
+      <div class="check-group" style="margin-top:8px">
+        <label><input type="checkbox" name="family_disease" value="heart" /><span>โรคหัวใจ</span></label>
+        <label><input type="checkbox" name="family_disease" value="diabetes" /><span>เบาหวาน</span></label>
+        <label><input type="checkbox" name="family_disease" value="cancer" /><span>มะเร็ง</span></label>
+        <label><input type="checkbox" name="family_disease" value="stroke" /><span>โรคหลอดเลือดสมอง</span></label>
+        <label><input type="checkbox" name="family_disease" value="hypertension" /><span>ความดันโลหิตสูง</span></label>
+        <label><input type="checkbox" name="family_disease" value="none" /><span>ไม่มี</span></label>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack(2)">← ย้อนกลับ</button>
+      <button class="btn-next" onclick="goNext(2)">ถัดไป →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SECTION 3 · อาชีพ & การเงิน
+  ════════════════════════════════════════ -->
+  <div class="section-card" id="step-3">
+    <div class="section-header">
+      <div class="section-icon">💼</div>
+      <div>
+        <div class="section-title">อาชีพและฐานะทางการเงิน</div>
+        <div class="section-desc">Occupation & Financial Status — ใช้ประเมินความเสี่ยงและความสามารถในการชำระเบี้ย</div>
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>อาชีพปัจจุบัน <span class="required">*</span></label>
+        <select id="occupation_type" required>
+          <option value="">-- เลือกประเภทอาชีพ --</option>
+          <option value="employee">พนักงานบริษัทเอกชน</option>
+          <option value="gov">ข้าราชการ / รัฐวิสาหกิจ</option>
+          <option value="self">ประกอบธุรกิจส่วนตัว / เจ้าของกิจการ</option>
+          <option value="freelance">ฟรีแลนซ์ / อาชีพอิสระ</option>
+          <option value="farmer">เกษตรกร</option>
+          <option value="student">นักเรียน / นักศึกษา</option>
+          <option value="retired">เกษียณอายุ</option>
+          <option value="unemployed">ไม่ได้ทำงาน</option>
+          <option value="other">อื่นๆ</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกอาชีพ</span>
+      </div>
+      <div class="field">
+        <label>ชื่อบริษัท / สถานประกอบการ</label>
+        <input type="text" id="employer" placeholder="เช่น บริษัท ABC จำกัด" />
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>ตำแหน่งงาน</label>
+        <input type="text" id="job_title" placeholder="เช่น นักบัญชีอาวุโส" />
+      </div>
+      <div class="field">
+        <label>อุตสาหกรรม</label>
+        <select id="industry">
+          <option value="">-- เลือก --</option>
+          <option>เทคโนโลยีสารสนเทศ</option>
+          <option>การเงิน / ธนาคาร</option>
+          <option>การผลิต / โรงงาน</option>
+          <option>ก่อสร้าง / โยธา</option>
+          <option>การศึกษา</option>
+          <option>การแพทย์ / สาธารณสุข</option>
+          <option>การค้า / ค้าปลีก</option>
+          <option>การขนส่ง / โลจิสติกส์</option>
+          <option>เกษตรกรรม</option>
+          <option>บันเทิง / สื่อ</option>
+          <option>อื่นๆ</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <p style="font-size:13px; font-weight:600; margin-bottom:12px; color:var(--primary)">รายได้และภาระทางการเงิน</p>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>รายได้รวมต่อปี (บาท) <span class="required">*</span></label>
+        <select id="annual_income" required>
+          <option value="">-- เลือกช่วงรายได้ --</option>
+          <option value="0-180000">ต่ำกว่า 180,000</option>
+          <option value="180001-360000">180,001 – 360,000</option>
+          <option value="360001-600000">360,001 – 600,000</option>
+          <option value="600001-1000000">600,001 – 1,000,000</option>
+          <option value="1000001-2000000">1,000,001 – 2,000,000</option>
+          <option value="2000001+">มากกว่า 2,000,000</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกช่วงรายได้</span>
+      </div>
+      <div class="field">
+        <label>แหล่งที่มาของรายได้ <span class="required">*</span></label>
+        <div class="check-group">
+          <label><input type="checkbox" name="income_source" value="salary" /><span>เงินเดือน</span></label>
+          <label><input type="checkbox" name="income_source" value="business" /><span>ธุรกิจ</span></label>
+          <label><input type="checkbox" name="income_source" value="investment" /><span>การลงทุน</span></label>
+          <label><input type="checkbox" name="income_source" value="rental" /><span>ค่าเช่า</span></label>
+          <label><input type="checkbox" name="income_source" value="other" /><span>อื่นๆ</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row cols-3">
+      <div class="field">
+        <label>ทรัพย์สินสุทธิโดยประมาณ</label>
+        <select id="net_worth">
+          <option value="">-- เลือก --</option>
+          <option>น้อยกว่า 1 ล้านบาท</option>
+          <option>1 – 5 ล้านบาท</option>
+          <option>5 – 10 ล้านบาท</option>
+          <option>10 – 50 ล้านบาท</option>
+          <option>มากกว่า 50 ล้านบาท</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>หนี้สินรวม (บาท/เดือน)</label>
+        <input type="number" id="monthly_debt" min="0" placeholder="เช่น 15000" />
+      </div>
+      <div class="field">
+        <label>จำนวนผู้พึ่งพา (คน)</label>
+        <input type="number" id="dependents" min="0" max="20" placeholder="0" value="0" />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack(3)">← ย้อนกลับ</button>
+      <button class="btn-next" onclick="goNext(3)">ถัดไป →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SECTION 4 · ผู้รับผลประโยชน์
+  ════════════════════════════════════════ -->
+  <div class="section-card" id="step-4">
+    <div class="section-header">
+      <div class="section-icon">👨‍👩‍👧</div>
+      <div>
+        <div class="section-title">ผู้รับผลประโยชน์</div>
+        <div class="section-desc">Beneficiary — ระบุบุคคลที่จะได้รับเงินประกันเมื่อเสียชีวิต</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>ℹ️ คำแนะนำ</strong>
+      สามารถระบุผู้รับผลประโยชน์ได้มากกว่า 1 คน โดยสัดส่วนทั้งหมดรวมกันต้องเท่ากับ 100%
+    </div>
+
+    <div id="beneficiary-list">
+      <div class="beneficiary-item" id="bene-0">
+        <h4>ผู้รับผลประโยชน์คนที่ 1</h4>
+        <div class="field-row cols-3">
+          <div class="field">
+            <label>ชื่อ-นามสกุล <span class="required">*</span></label>
+            <input type="text" name="bene_name" placeholder="เช่น สมหญิง ใจดี" />
+          </div>
+          <div class="field">
+            <label>ความสัมพันธ์ <span class="required">*</span></label>
+            <select name="bene_relation">
+              <option value="">-- เลือก --</option>
+              <option>คู่สมรส</option>
+              <option>บุตร</option>
+              <option>บิดา</option>
+              <option>มารดา</option>
+              <option>พี่น้อง</option>
+              <option>อื่นๆ</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>สัดส่วน (%)</label>
+            <input type="number" name="bene_pct" min="1" max="100" placeholder="100" value="100" />
+          </div>
+        </div>
+        <div class="field-row cols-2">
+          <div class="field">
+            <label>วันเกิด</label>
+            <input type="date" name="bene_dob" />
+          </div>
+          <div class="field">
+            <label>เลขบัตรประชาชน</label>
+            <input type="text" name="bene_id" maxlength="13" placeholder="13 หลัก" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <button class="btn-add" onclick="addBeneficiary()">+ เพิ่มผู้รับผลประโยชน์</button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack(4)">← ย้อนกลับ</button>
+      <button class="btn-next" onclick="goNext(4)">ถัดไป →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SECTION 5 · ความต้องการประกัน
+  ════════════════════════════════════════ -->
+  <div class="section-card" id="step-5">
+    <div class="section-header">
+      <div class="section-icon">🎯</div>
+      <div>
+        <div class="section-title">ความต้องการในการทำประกัน</div>
+        <div class="section-desc">Insurance Needs — วัตถุประสงค์และลักษณะแผนที่ต้องการ</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>วัตถุประสงค์หลักในการทำประกันชีวิต <span class="required">*</span> <span class="hint">(เลือกได้มากกว่า 1 ข้อ)</span></label>
+      <div class="check-group" style="margin-top:8px">
+        <label><input type="checkbox" name="ins_purpose" value="protection" /><span>คุ้มครองชีวิต / ให้ทายาท</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="saving" /><span>ออมเงิน / สะสมทรัพย์</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="retirement" /><span>เกษียณอายุ</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="education" /><span>ทุนการศึกษาบุตร</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="tax" /><span>วางแผนภาษี</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="medical" /><span>ค่ารักษาพยาบาล</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="debt" /><span>ชำระหนี้หากเสียชีวิต</span></label>
+        <label><input type="checkbox" name="ins_purpose" value="business" /><span>ความต่อเนื่องธุรกิจ</span></label>
+      </div>
+    </div>
+
+    <div class="field-row cols-2" style="margin-top:16px">
+      <div class="field">
+        <label>ประเภทประกันที่สนใจ</label>
+        <div class="check-group">
+          <label><input type="checkbox" name="ins_type" value="term" /><span>ประกันชีวิตชั่วคราว (Term)</span></label>
+          <label><input type="checkbox" name="ins_type" value="whole" /><span>ประกันชีวิตตลอดชีพ (Whole Life)</span></label>
+          <label><input type="checkbox" name="ins_type" value="endow" /><span>ประกันสะสมทรัพย์ (Endowment)</span></label>
+          <label><input type="checkbox" name="ins_type" value="ulip" /><span>ประกันควบการลงทุน (ULIP)</span></label>
+          <label><input type="checkbox" name="ins_type" value="annuity" /><span>ประกันบำนาญ (Annuity)</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>สัญญาเพิ่มเติมที่สนใจ (Rider)</label>
+        <div class="check-group">
+          <label><input type="checkbox" name="rider" value="health" /><span>ค่ารักษาพยาบาล (Health)</span></label>
+          <label><input type="checkbox" name="rider" value="ci" /><span>โรคร้ายแรง (CI)</span></label>
+          <label><input type="checkbox" name="rider" value="accident" /><span>อุบัติเหตุ (PA)</span></label>
+          <label><input type="checkbox" name="rider" value="disability" /><span>ทุพพลภาพ (Disability)</span></label>
+          <label><input type="checkbox" name="rider" value="waiver" /><span>ยกเว้นเบี้ยฯ (Waiver)</span></label>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="field-row cols-3">
+      <div class="field">
+        <label>ทุนประกันที่ต้องการ (บาท) <span class="required">*</span></label>
+        <select id="sum_assured" required>
+          <option value="">-- เลือก --</option>
+          <option>น้อยกว่า 500,000</option>
+          <option>500,000 – 1,000,000</option>
+          <option>1,000,001 – 3,000,000</option>
+          <option>3,000,001 – 5,000,000</option>
+          <option>5,000,001 – 10,000,000</option>
+          <option>มากกว่า 10,000,000</option>
+        </select>
+        <span class="error-msg">กรุณาเลือกทุนประกัน</span>
+      </div>
+      <div class="field">
+        <label>งบประมาณเบี้ยประกัน/ปี (บาท)</label>
+        <select id="premium_budget">
+          <option value="">-- เลือก --</option>
+          <option>น้อยกว่า 10,000</option>
+          <option>10,000 – 30,000</option>
+          <option>30,001 – 60,000</option>
+          <option>60,001 – 100,000</option>
+          <option>100,001 – 200,000</option>
+          <option>มากกว่า 200,000</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>ระยะเวลาที่ต้องการชำระเบี้ย</label>
+        <select id="payment_term">
+          <option value="">-- เลือก --</option>
+          <option>ชำระครั้งเดียว</option>
+          <option>5 ปี</option>
+          <option>10 ปี</option>
+          <option>15 ปี</option>
+          <option>20 ปี</option>
+          <option>จนครบอายุ 60 ปี</option>
+          <option>จนครบอายุ 65 ปี</option>
+          <option>จนครบอายุ 70 ปี</option>
+          <option>ตลอดชีพ</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>ความถี่ในการชำระเบี้ย</label>
+        <div class="radio-group">
+          <label><input type="radio" name="payment_freq" value="annual" checked /><span>รายปี</span></label>
+          <label><input type="radio" name="payment_freq" value="semi" /><span>ราย 6 เดือน</span></label>
+          <label><input type="radio" name="payment_freq" value="quarter" /><span>รายไตรมาส</span></label>
+          <label><input type="radio" name="payment_freq" value="monthly" /><span>รายเดือน</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>ความสนใจด้านการลงทุน (หากสนใจ ULIP)</label>
+        <div class="radio-group">
+          <label><input type="radio" name="risk_appetite" value="low" /><span>ต่ำ (รักษาเงินต้น)</span></label>
+          <label><input type="radio" name="risk_appetite" value="med" /><span>ปานกลาง</span></label>
+          <label><input type="radio" name="risk_appetite" value="high" /><span>สูง (รับความผันผวนได้)</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack(5)">← ย้อนกลับ</button>
+      <button class="btn-next" onclick="goNext(5)">ถัดไป →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SECTION 6 · ประกันเดิม & KYC
+  ════════════════════════════════════════ -->
+  <div class="section-card" id="step-6">
+    <div class="section-header">
+      <div class="section-icon">📋</div>
+      <div>
+        <div class="section-title">ประวัติประกันเดิม & KYC</div>
+        <div class="section-desc">Existing Insurance & Compliance — ข้อมูลสำหรับ Compliance และ Anti-Money Laundering</div>
+      </div>
+    </div>
+
+    <p style="font-size:13px; font-weight:600; margin-bottom:12px; color:var(--primary)">ประวัติการทำประกัน</p>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>มีกรมธรรม์ประกันชีวิตอยู่แล้วหรือไม่? <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="has_existing" value="no" checked /><span>ไม่มี</span></label>
+          <label><input type="radio" name="has_existing" value="yes" /><span>มี</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="conditional" id="cond-existing">
+      <div class="conditional-box">
+        <p>กรุณาระบุข้อมูลกรมธรรม์ที่มีอยู่</p>
+        <div class="field-row cols-3">
+          <div class="field">
+            <label>บริษัทประกัน</label>
+            <input type="text" id="exist_company" placeholder="ชื่อบริษัท" />
+          </div>
+          <div class="field">
+            <label>ทุนประกันรวม (บาท)</label>
+            <input type="number" id="exist_sum" min="0" placeholder="เช่น 1000000" />
+          </div>
+          <div class="field">
+            <label>เบี้ยประกันรวม/ปี (บาท)</label>
+            <input type="number" id="exist_premium" min="0" placeholder="เช่น 20000" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:16px">
+      <label>เคยถูกปฏิเสธ เลื่อน หรือยกเว้นการรับประกัน? <span class="required">*</span></label>
+      <div class="radio-group">
+        <label><input type="radio" name="rejected" value="no" checked /><span>ไม่เคย</span></label>
+        <label><input type="radio" name="rejected" value="yes" /><span>เคย</span></label>
+      </div>
+    </div>
+
+    <div class="conditional" id="cond-rejected">
+      <div class="conditional-box">
+        <div class="field"><textarea id="rejected_detail" rows="2" placeholder="กรุณาระบุรายละเอียด"></textarea></div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <p style="font-size:13px; font-weight:600; margin-bottom:12px; color:var(--primary)">ข้อมูล KYC / AML</p>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>ท่านเป็นบุคคลทางการเมือง (PEP) หรือไม่? <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="is_pep" value="no" checked /><span>ไม่ใช่</span></label>
+          <label><input type="radio" name="is_pep" value="yes" /><span>ใช่</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>ท่านเป็นหรือเกี่ยวข้องกับบุคคลต่างชาติ (FATCA)? <span class="required">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="is_fatca" value="no" checked /><span>ไม่ใช่</span></label>
+          <label><input type="radio" name="is_fatca" value="yes" /><span>ใช่</span></label>
+        </div>
+      </div>
+    </div>
+
+    <div class="field-row cols-2">
+      <div class="field">
+        <label>ประเทศถิ่นฐานทางภาษี <span class="required">*</span></label>
+        <input type="text" id="tax_residence" value="ประเทศไทย" required />
+        <span class="error-msg">กรุณาระบุประเทศถิ่นฐานทางภาษี</span>
+      </div>
+      <div class="field">
+        <label>เลขประจำตัวผู้เสียภาษี (TIN)</label>
+        <input type="text" id="tin" placeholder="ถ้ามี" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label>วัตถุประสงค์ในการชำระเบี้ยประกัน <span class="required">*</span></label>
+      <div class="radio-group">
+        <label><input type="radio" name="premium_purpose" value="personal" checked /><span>เพื่อตนเองและครอบครัว</span></label>
+        <label><input type="radio" name="premium_purpose" value="business" /><span>เพื่อธุรกิจ</span></label>
+        <label><input type="radio" name="premium_purpose" value="other" /><span>อื่นๆ</span></label>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack(6)">← ย้อนกลับ</button>
+      <button class="btn-next" onclick="goNext(6)">ถัดไป →</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       SECTION 7 · ยืนยันและยินยอม
+  ════════════════════════════════════════ -->
+  <div class="section-card" id="step-7">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <div>
+        <div class="section-title">ยืนยันข้อมูลและให้ความยินยอม</div>
+        <div class="section-desc">Consent & Declaration — อ่านและยอมรับเงื่อนไขก่อนส่งแบบสอบถาม</div>
+      </div>
+    </div>
+
+    <div class="consent-box">
+      <h4>การให้ความยินยอมเก็บรวบรวมข้อมูลส่วนบุคคล (PDPA)</h4>
+      บริษัทจะเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลของท่านเพื่อวัตถุประสงค์ในการพิจารณารับประกันชีวิต การวิเคราะห์ความเสี่ยง การออกกรมธรรม์ และการให้บริการหลังการขาย ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA) ท่านมีสิทธิ์เข้าถึง แก้ไข และลบข้อมูลของท่านได้ตามที่กฎหมายกำหนด
+    </div>
+
+    <div class="consent-box">
+      <h4>การให้ความยินยอมเก็บรวบรวมข้อมูลสุขภาพ (Sensitive Data)</h4>
+      ข้อมูลสุขภาพและพันธุกรรมถือเป็นข้อมูลอ่อนไหว บริษัทจำเป็นต้องเก็บข้อมูลเหล่านี้เพื่อประเมินความเสี่ยงในการรับประกัน หากท่านไม่ยินยอม บริษัทอาจไม่สามารถพิจารณารับประกันให้ท่านได้
+    </div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-weight:400">
+        <input type="checkbox" id="consent_data" style="margin-top:3px; width:16px; height:16px; flex-shrink:0; accent-color:var(--primary)" />
+        <span style="font-size:13px">ข้าพเจ้ายินยอมให้บริษัทเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้าตามวัตถุประสงค์ที่ระบุข้างต้น <span class="required">*</span></span>
+      </label>
+    </div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-weight:400">
+        <input type="checkbox" id="consent_health" style="margin-top:3px; width:16px; height:16px; flex-shrink:0; accent-color:var(--primary)" />
+        <span style="font-size:13px">ข้าพเจ้ายินยอมให้บริษัทเก็บรวบรวมและประมวลผลข้อมูลสุขภาพของข้าพเจ้าเพื่อการพิจารณารับประกัน <span class="required">*</span></span>
+      </label>
+    </div>
+
+    <div class="field" style="margin-bottom:20px">
+      <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-weight:400">
+        <input type="checkbox" id="consent_marketing" style="margin-top:3px; width:16px; height:16px; flex-shrink:0; accent-color:var(--primary)" />
+        <span style="font-size:13px">ข้าพเจ้ายินยอมรับการติดต่อทางการตลาดและข้อมูลผลิตภัณฑ์จากบริษัท (ไม่บังคับ)</span>
+      </label>
+    </div>
+
+    <div class="consent-box" style="background:#fff8f8; border-color:#f5a0a0">
+      <h4 style="color:#a00">คำรับรองของผู้สมัคร</h4>
+      ข้าพเจ้าขอรับรองว่าข้อมูลทั้งหมดที่กรอกในแบบสอบถามนี้เป็นความจริงและครบถ้วน ข้าพเจ้าทราบดีว่าหากให้ข้อมูลเท็จหรือปกปิดข้อเท็จจริง บริษัทมีสิทธิ์บอกล้างสัญญาประกันได้
+    </div>
+
+    <div class="field">
+      <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-weight:400">
+        <input type="checkbox" id="consent_declaration" style="margin-top:3px; width:16px; height:16px; flex-shrink:0; accent-color:var(--primary)" />
+        <span style="font-size:13px">ข้าพเจ้ารับรองว่าข้อมูลทั้งหมดในแบบสอบถามนี้เป็นความจริง และยินยอมให้บริษัทตรวจสอบข้อมูลเพิ่มเติมได้หากจำเป็น <span class="required">*</span></span>
+      </label>
+    </div>
+
+    <div class="field-row cols-2" style="margin-top:16px">
+      <div class="field">
+        <label>ชื่อ-นามสกุล (ยืนยันตัวตน) <span class="required">*</span></label>
+        <input type="text" id="sig_name" placeholder="กรอกชื่อนามสกุลเพื่อยืนยัน" required />
+      </div>
+      <div class="field">
+        <label>วันที่ <span class="required">*</span></label>
+        <input type="date" id="sig_date" required />
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-back" onclick="goBack(7)">← ย้อนกลับ</button>
+      <button class="btn-submit" onclick="submitForm()">ส่งแบบสอบถาม ✓</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       THANK YOU
+  ════════════════════════════════════════ -->
+  <div id="thankyou">
+    <div class="checkmark">✅</div>
+    <h2>ขอบคุณสำหรับข้อมูลของท่าน</h2>
+    <p>เจ้าหน้าที่จะติดต่อกลับภายใน 1-2 วันทำการ<br />เพื่อนำเสนอแผนประกันที่เหมาะสมกับท่าน</p>
+  </div>
+
+</main>
+
+<script>
+  /* ── State ── */
+  let currentStep = 1;
+  const totalSteps = 7;
+
+  /* ── Navigation ── */
+  function showStep(n) {
+    document.querySelectorAll('.section-card').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('step-' + n);
+    if (el) el.classList.add('active');
+
+    document.querySelectorAll('.step-dot').forEach(d => {
+      const s = parseInt(d.dataset.step);
+      d.classList.toggle('active', s === n);
+      d.classList.toggle('done', s < n);
+    });
+
+    const pct = Math.round((n / totalSteps) * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = 'ขั้นตอนที่ ' + n + ' จาก ' + totalSteps;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    currentStep = n;
+  }
+
+  function goNext(step) { showStep(step + 1); }
+  function goBack(step) { showStep(step - 1); }
+
+  /* ── Auto-calculate age from DOB ── */
+  document.getElementById('dob').addEventListener('change', function () {
+    const dob = new Date(this.value);
+    if (!isNaN(dob)) {
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+      document.getElementById('age').value = age >= 0 ? age : '';
+    }
+  });
+
+  /* ── Auto-calculate BMI ── */
+  function calcBMI() {
+    const w = parseFloat(document.getElementById('weight').value);
+    const h = parseFloat(document.getElementById('height').value);
+    if (w > 0 && h > 0) {
+      const bmi = (w / ((h / 100) ** 2)).toFixed(1);
+      document.getElementById('bmi').value = bmi;
+    }
+  }
+  document.getElementById('weight').addEventListener('input', calcBMI);
+  document.getElementById('height').addEventListener('input', calcBMI);
+
+  /* ── Conditional fields helper ── */
+  function watchRadio(name, showValue, condId) {
+    document.querySelectorAll('[name="' + name + '"]').forEach(r => {
+      r.addEventListener('change', function () {
+        document.getElementById(condId).classList.toggle('visible', this.value === showValue);
+      });
+    });
+  }
+
+  function watchCheckbox(name, showValues, condId) {
+    document.querySelectorAll('[name="' + name + '"]').forEach(cb => {
+      cb.addEventListener('change', function () {
+        const checked = [...document.querySelectorAll('[name="' + name + '"]:checked')].map(c => c.value);
+        const show = showValues.some(v => checked.includes(v));
+        document.getElementById(condId).classList.toggle('visible', show);
+      });
+    });
+  }
+
+  watchRadio('smoking', 'current', 'cond-smoking');
+  watchRadio('smoking', 'ex', 'cond-smoking');  // also show for ex-smokers
+  document.querySelectorAll('[name="smoking"]').forEach(r => {
+    r.addEventListener('change', function () {
+      document.getElementById('cond-smoking').classList.toggle('visible', this.value !== 'never');
+    });
+  });
+
+  watchCheckbox('disease', ['heart','diabetes','hypertension','cancer','stroke','kidney','liver','lung','mental','hiv'], 'cond-disease');
+  watchRadio('hospitalized', 'yes', 'cond-hospitalized');
+  watchRadio('on_medication', 'yes', 'cond-medication');
+  watchRadio('has_existing', 'yes', 'cond-existing');
+  watchRadio('rejected', 'yes', 'cond-rejected');
+
+  /* ── Default today's date for signature ── */
+  document.getElementById('sig_date').value = new Date().toISOString().split('T')[0];
+
+  /* ── Add Beneficiary ── */
+  let beneCount = 1;
+  function addBeneficiary() {
+    if (beneCount >= 5) { alert('สามารถระบุผู้รับผลประโยชน์ได้สูงสุด 5 คน'); return; }
+    beneCount++;
+    const container = document.getElementById('beneficiary-list');
+    const div = document.createElement('div');
+    div.className = 'beneficiary-item';
+    div.id = 'bene-' + (beneCount - 1);
+    div.innerHTML = `
+      <h4>ผู้รับผลประโยชน์คนที่ ${beneCount}</h4>
+      <button class="btn-remove" onclick="this.parentElement.remove(); beneCount--;" title="ลบ">✕</button>
+      <div class="field-row cols-3">
+        <div class="field"><label>ชื่อ-นามสกุล <span class="required">*</span></label>
+          <input type="text" name="bene_name" placeholder="เช่น สมหญิง ใจดี" /></div>
+        <div class="field"><label>ความสัมพันธ์ <span class="required">*</span></label>
+          <select name="bene_relation">
+            <option value="">-- เลือก --</option>
+            <option>คู่สมรส</option><option>บุตร</option><option>บิดา</option>
+            <option>มารดา</option><option>พี่น้อง</option><option>อื่นๆ</option>
+          </select></div>
+        <div class="field"><label>สัดส่วน (%)</label>
+          <input type="number" name="bene_pct" min="1" max="100" placeholder="0" /></div>
+      </div>
+      <div class="field-row cols-2">
+        <div class="field"><label>วันเกิด</label><input type="date" name="bene_dob" /></div>
+        <div class="field"><label>เลขบัตรประชาชน</label>
+          <input type="text" name="bene_id" maxlength="13" placeholder="13 หลัก" /></div>
+      </div>`;
+    container.appendChild(div);
+  }
+
+  /* ── Submit ── */
+  async function submitForm() {
+    if (!document.getElementById('consent_data').checked ||
+        !document.getElementById('consent_health').checked ||
+        !document.getElementById('consent_declaration').checked) {
+      alert('กรุณายืนยันความยินยอมและคำรับรองก่อนส่งแบบสอบถาม');
+      return;
+    }
+    if (!document.getElementById('sig_name').value.trim()) {
+      alert('กรุณากรอกชื่อ-นามสกุลเพื่อยืนยันตัวตน');
+      return;
+    }
+
+    const btn = document.querySelector('.btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'กำลังบันทึก...';
+
+    const data = collectFormData();
+
+    try {
+      const res = await fetch('http://localhost:3001/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error('Server error');
+      const result = await res.json();
+      console.log('Saved with id:', result.id);
+    } catch (e) {
+      console.warn('Could not reach server, saving locally:', e.message);
+    }
+
+    document.querySelectorAll('.section-card').forEach(s => s.style.display = 'none');
+    document.getElementById('progress-wrap').style.display = 'none';
+    document.getElementById('thankyou').style.display = 'block';
+  }
+
+  function collectFormData() {
+    const radio = name => {
+      const el = document.querySelector('[name="' + name + '"]:checked');
+      return el ? el.value : null;
+    };
+    const checks = name => [...document.querySelectorAll('[name="' + name + '"]:checked')].map(c => c.value);
+    const val = id => { const el = document.getElementById(id); return el ? el.value : null; };
+
+    return {
+      personal: {
+        title: val('title'), first_name_th: val('first_name_th'), last_name_th: val('last_name_th'),
+        first_name_en: val('first_name_en'), last_name_en: val('last_name_en'),
+        dob: val('dob'), age: val('age'), gender: val('gender'),
+        national_id: val('national_id'), nationality: val('nationality'),
+        marital_status: val('marital_status'), children: val('children'),
+        address: val('address'), sub_district: val('sub_district'),
+        district: val('district'), province: val('province'),
+        postal_code: val('postal_code'), mobile: val('mobile'), email: val('email')
+      },
+      health: {
+        weight: val('weight'), height: val('height'), bmi: val('bmi'),
+        smoking: radio('smoking'), cig_per_day: val('cig_per_day'), cig_years: val('cig_years'),
+        alcohol: radio('alcohol'), exercise: val('exercise'),
+        risky_activities: checks('risky_activity'),
+        disease_history: checks('disease'), disease_detail: val('disease_detail'),
+        hospitalized: radio('hospitalized'), hospitalized_detail: val('hospitalized_detail'),
+        on_medication: radio('on_medication'), medication_detail: val('medication_detail'),
+        family_disease: checks('family_disease')
+      },
+      occupation_finance: {
+        occupation_type: val('occupation_type'), employer: val('employer'),
+        job_title: val('job_title'), industry: val('industry'),
+        annual_income: val('annual_income'), income_sources: checks('income_source'),
+        net_worth: val('net_worth'), monthly_debt: val('monthly_debt'), dependents: val('dependents')
+      },
+      beneficiaries: [...document.querySelectorAll('.beneficiary-item')].map(item => ({
+        name: item.querySelector('[name=bene_name]')?.value,
+        relation: item.querySelector('[name=bene_relation]')?.value,
+        pct: item.querySelector('[name=bene_pct]')?.value,
+        dob: item.querySelector('[name=bene_dob]')?.value,
+        id: item.querySelector('[name=bene_id]')?.value
+      })),
+      insurance_needs: {
+        purposes: checks('ins_purpose'), types: checks('ins_type'),
+        riders: checks('rider'), sum_assured: val('sum_assured'),
+        premium_budget: val('premium_budget'), payment_term: val('payment_term'),
+        payment_freq: radio('payment_freq'), risk_appetite: radio('risk_appetite')
+      },
+      kyc: {
+        has_existing: radio('has_existing'), exist_company: val('exist_company'),
+        exist_sum: val('exist_sum'), exist_premium: val('exist_premium'),
+        rejected: radio('rejected'), rejected_detail: val('rejected_detail'),
+        is_pep: radio('is_pep'), is_fatca: radio('is_fatca'),
+        tax_residence: val('tax_residence'), tin: val('tin'),
+        premium_purpose: radio('premium_purpose')
+      },
+      consent: {
+        data: document.getElementById('consent_data').checked,
+        health: document.getElementById('consent_health').checked,
+        marketing: document.getElementById('consent_marketing').checked,
+        declaration: document.getElementById('consent_declaration').checked,
+        sig_name: val('sig_name'), sig_date: val('sig_date')
+      }
+    };
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — แบบสอบถามประกันชีวิต</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary: #1a4f8a; --primary-light: #2d6db5; --accent: #e8a020;
+      --bg: #f0f2f7; --card: #fff; --border: #dde3ee;
+      --text: #1e2d40; --muted: #6b7a8f;
+      --new: #2980b9; --reviewing: #8e44ad; --contacted: #e67e22;
+      --approved: #27ae60; --rejected: #c0392b;
+    }
+    body { font-family: 'Segoe UI', 'Sarabun', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 220px; flex-shrink: 0;
+      background: var(--primary);
+      display: flex; flex-direction: column;
+      color: #fff; padding: 0;
+    }
+    #sidebar .logo { padding: 20px 18px 16px; font-size: 15px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.12); }
+    #sidebar .logo span { font-size: 20px; margin-right: 6px; }
+    #sidebar nav a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 18px; color: rgba(255,255,255,0.75);
+      text-decoration: none; font-size: 13px;
+      transition: background .15s, color .15s;
+      cursor: pointer;
+    }
+    #sidebar nav a:hover, #sidebar nav a.active { background: rgba(255,255,255,0.12); color: #fff; }
+    #sidebar nav a .icon { font-size: 16px; width: 20px; text-align: center; }
+    #sidebar .ext-link { margin-top: auto; padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.12); }
+    #sidebar .ext-link a { color: rgba(255,255,255,0.6); font-size: 12px; text-decoration: none; }
+    #sidebar .ext-link a:hover { color: #fff; }
+
+    /* ── Main area ── */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* ── Topbar ── */
+    #topbar {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 14px 24px; display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    #topbar h1 { font-size: 16px; font-weight: 700; flex: 1; }
+    #topbar .search-wrap { position: relative; }
+    #topbar input[type=search] {
+      border: 1px solid var(--border); border-radius: 20px;
+      padding: 7px 14px 7px 36px; font-size: 13px; width: 220px;
+      outline: none; background: var(--bg);
+    }
+    #topbar input[type=search]:focus { border-color: var(--primary-light); }
+    #topbar .search-wrap::before { content: '🔍'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; }
+    #topbar select {
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 10px; font-size: 13px; background: var(--bg); cursor: pointer;
+    }
+    #refresh-btn {
+      border: 1px solid var(--border); background: var(--bg);
+      border-radius: 6px; padding: 7px 12px; cursor: pointer; font-size: 13px;
+    }
+    #refresh-btn:hover { background: #e8ecf5; }
+
+    /* ── Content views ── */
+    #content { flex: 1; overflow-y: auto; padding: 20px 24px; }
+
+    /* ── View panels ── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ── Stats cards ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 18px 20px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .stat-card .label { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .stat-card .value { font-size: 28px; font-weight: 700; color: var(--primary); }
+    .stat-card .sub { font-size: 11px; color: var(--muted); }
+
+    /* ── Chart bars (CSS only) ── */
+    .mini-chart { display: flex; flex-direction: column; gap: 6px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .bar-label { width: 120px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; background: #e8ecf5; border-radius: 4px; height: 10px; }
+    .bar-fill { height: 100%; background: var(--primary-light); border-radius: 4px; transition: width .5s; }
+    .bar-count { width: 24px; text-align: right; font-weight: 600; color: var(--text); }
+
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .chart-card h3 { font-size: 13px; font-weight: 700; margin-bottom: 14px; color: var(--primary); }
+
+    /* ── Table ── */
+    .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #f7f9fd; font-size: 11px; text-transform: uppercase;
+      color: var(--muted); font-weight: 600; letter-spacing: .5px;
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; cursor: pointer; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f7f9fd; }
+    td { padding: 11px 14px; font-size: 13px; }
+    td.id-col { color: var(--muted); font-size: 11px; }
+    td.name-col { font-weight: 600; }
+
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 10px; text-transform: uppercase;
+    }
+    .badge-new       { background: #dbeafe; color: var(--new); }
+    .badge-reviewing { background: #f3e8ff; color: var(--reviewing); }
+    .badge-contacted { background: #fff4e5; color: var(--contacted); }
+    .badge-approved  { background: #dcfce7; color: var(--approved); }
+    .badge-rejected  { background: #fee2e2; color: var(--rejected); }
+
+    /* ── Pagination ── */
+    #pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 16px; border-top: 1px solid var(--border); }
+    #pagination button {
+      border: 1px solid var(--border); background: var(--bg); border-radius: 6px;
+      padding: 5px 12px; cursor: pointer; font-size: 12px;
+    }
+    #pagination button:hover:not(:disabled) { background: #e8ecf5; }
+    #pagination button:disabled { opacity: .4; cursor: default; }
+    #pagination .page-info { font-size: 12px; color: var(--muted); }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty p { font-size: 13px; }
+
+    /* ── Detail panel (drawer) ── */
+    #drawer-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 100;
+    }
+    #drawer-overlay.open { display: block; }
+    #drawer {
+      position: fixed; top: 0; right: -700px; width: 680px; height: 100vh;
+      background: var(--card); box-shadow: -4px 0 20px rgba(0,0,0,0.12);
+      z-index: 101; transition: right .3s; display: flex; flex-direction: column;
+    }
+    #drawer.open { right: 0; }
+    #drawer-header {
+      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    #drawer-header h2 { font-size: 16px; font-weight: 700; flex: 1; }
+    #drawer-close {
+      border: none; background: none; font-size: 20px; cursor: pointer;
+      color: var(--muted); line-height: 1; padding: 4px 8px; border-radius: 4px;
+    }
+    #drawer-close:hover { background: var(--bg); }
+    #drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+    #drawer-footer {
+      padding: 14px 22px; border-top: 1px solid var(--border);
+      display: flex; gap: 10px; flex-shrink: 0; align-items: flex-start;
+    }
+    #drawer-footer textarea {
+      flex: 1; border: 1px solid var(--border); border-radius: 7px;
+      padding: 8px 12px; font-size: 13px; font-family: inherit; resize: none; height: 60px;
+    }
+    #drawer-footer textarea:focus { outline: none; border-color: var(--primary-light); }
+    #add-note-btn {
+      background: var(--primary); color: #fff; border: none;
+      border-radius: 7px; padding: 8px 16px; font-size: 13px;
+      cursor: pointer; white-space: nowrap; align-self: flex-end;
+    }
+    #add-note-btn:hover { background: var(--primary-light); }
+
+    /* ── Detail sections ── */
+    .detail-section { margin-bottom: 20px; }
+    .detail-section h3 {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 12px;
+    }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+    .detail-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .detail-item dt { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .detail-item dd { font-size: 13px; font-weight: 500; }
+    .detail-item dd.mono { font-family: monospace; }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      background: #eef4fc; color: var(--primary); font-size: 11px;
+      padding: 3px 10px; border-radius: 12px; font-weight: 500;
+    }
+
+    .status-select {
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 5px 10px; font-size: 12px; font-family: inherit; cursor: pointer;
+    }
+
+    .notes-list { display: flex; flex-direction: column; gap: 10px; }
+    .note-item {
+      background: #fffbf0; border: 1px solid #f5d98a;
+      border-radius: 7px; padding: 10px 14px; font-size: 12px;
+    }
+    .note-item .note-date { color: var(--muted); margin-bottom: 4px; }
+    .note-item .note-text { color: var(--text); }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 40px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* gender dot */
+    .gender-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+    .gender-dot.M { background: #3498db; }
+    .gender-dot.F { background: #e91e8c; }
+    .gender-dot.O { background: #9b59b6; }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<div id="sidebar">
+  <div class="logo"><span>🛡️</span>Power Insurance Admin</div>
+  <nav>
+    <a class="active" data-view="dashboard" onclick="switchView('dashboard', this)">
+      <span class="icon">📊</span> Dashboard
+    </a>
+    <a data-view="list" onclick="switchView('list', this)">
+      <span class="icon">📋</span> รายการทั้งหมด
+    </a>
+    <a data-view="new" onclick="switchView('list', this, 'new')">
+      <span class="icon">🆕</span> รายการใหม่
+    </a>
+    <a data-view="reviewing" onclick="switchView('list', this, 'reviewing')">
+      <span class="icon">🔍</span> กำลังพิจารณา
+    </a>
+    <a data-view="contacted" onclick="switchView('list', this, 'contacted')">
+      <span class="icon">📞</span> ติดต่อแล้ว
+    </a>
+    <a data-view="approved" onclick="switchView('list', this, 'approved')">
+      <span class="icon">✅</span> อนุมัติ
+    </a>
+  </nav>
+  <div class="ext-link">
+    <a href="/" target="_blank">🔗 เปิดแบบสอบถาม</a>
+  </div>
+</div>
+
+<!-- ── Main ── -->
+<div id="main">
+  <div id="topbar">
+    <h1 id="topbar-title">Dashboard</h1>
+    <div class="search-wrap">
+      <input type="search" id="search-input" placeholder="ค้นหาชื่อ, เบอร์, อีเมล..." oninput="debounceSearch()" />
+    </div>
+    <select id="status-filter" onchange="loadList()">
+      <option value="all">ทุกสถานะ</option>
+      <option value="new">ใหม่</option>
+      <option value="reviewing">กำลังพิจารณา</option>
+      <option value="contacted">ติดต่อแล้ว</option>
+      <option value="approved">อนุมัติ</option>
+      <option value="rejected">ปฏิเสธ</option>
+    </select>
+    <button id="refresh-btn" onclick="refresh()">↻ รีเฟรช</button>
+  </div>
+
+  <div id="content">
+    <!-- Dashboard view -->
+    <div class="view active" id="view-dashboard">
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="label">ผู้ตอบทั้งหมด</div><div class="value" id="s-total">—</div><div class="sub">ทุกช่วงเวลา</div></div>
+        <div class="stat-card"><div class="label">วันนี้</div><div class="value" id="s-today">—</div><div class="sub">รายการใหม่</div></div>
+        <div class="stat-card"><div class="label">อายุเฉลี่ย</div><div class="value" id="s-age">—</div><div class="sub">ปี</div></div>
+        <div class="stat-card"><div class="label">รอพิจารณา</div><div class="value" id="s-pending">—</div><div class="sub">รายการ</div></div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>สถานะรายการ</h3>
+          <div class="mini-chart" id="chart-status"></div>
+        </div>
+        <div class="chart-card">
+          <h3>อาชีพยอดนิยม (Top 5)</h3>
+          <div class="mini-chart" id="chart-occ"></div>
+        </div>
+      </div>
+      <!-- Recent table -->
+      <div class="table-card">
+        <table>
+          <thead><tr>
+            <th>#</th><th>ชื่อ-นามสกุล</th><th>อายุ/เพศ</th>
+            <th>เบอร์โทร</th><th>ทุนประกัน</th><th>สถานะ</th><th>วันที่</th>
+          </tr></thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+        <div id="pagination">
+          <span class="page-info" id="page-info"></span>
+          <button id="btn-prev" onclick="changePage(-1)" disabled>← ก่อนหน้า</button>
+          <button id="btn-next" onclick="changePage(1)">ถัดไป →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- List view -->
+    <div class="view" id="view-list">
+      <div class="table-card">
+        <table>
+          <thead><tr>
+            <th>#</th><th>ชื่อ-นามสกุล</th><th>อายุ/เพศ</th>
+            <th>เบอร์โทร</th><th>ทุนประกัน</th><th>สถานะ</th><th>วันที่</th>
+          </tr></thead>
+          <tbody id="list-tbody"></tbody>
+        </table>
+        <div id="list-pagination">
+          <span class="page-info" id="list-page-info"></span>
+          <button id="list-btn-prev" onclick="changePage(-1)" disabled>← ก่อนหน้า</button>
+          <button id="list-btn-next" onclick="changePage(1)">ถัดไป →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Detail Drawer ── -->
+<div id="drawer-overlay" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div id="drawer-header">
+    <h2 id="drawer-title">รายละเอียด</h2>
+    <select class="status-select" id="drawer-status" onchange="updateStatus()"></select>
+    <button id="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div id="drawer-body">
+    <div class="spinner"></div>
+  </div>
+  <div id="drawer-footer">
+    <textarea id="note-input" placeholder="เพิ่มบันทึก / หมายเหตุ..."></textarea>
+    <button id="add-note-btn" onclick="addNote()">บันทึก</button>
+  </div>
+</div>
+
+<script>
+  const API = 'http://localhost:3001/api';
+  let currentPage = 1;
+  let currentStatus = 'all';
+  let currentSearch = '';
+  let currentSubmissionId = null;
+  let searchTimer = null;
+
+  const statusLabels = {
+    new: 'ใหม่', reviewing: 'กำลังพิจารณา',
+    contacted: 'ติดต่อแล้ว', approved: 'อนุมัติ', rejected: 'ปฏิเสธ'
+  };
+  const occLabels = {
+    employee: 'พนักงานบริษัท', gov: 'ข้าราชการ/รัฐวิสาหกิจ',
+    self: 'ธุรกิจส่วนตัว', freelance: 'ฟรีแลนซ์', farmer: 'เกษตรกร',
+    student: 'นักเรียน/นักศึกษา', retired: 'เกษียณ', unemployed: 'ไม่ได้ทำงาน', other: 'อื่นๆ'
+  };
+  const genderLabel = { M: 'ชาย', F: 'หญิง', O: 'อื่นๆ' };
+
+  /* ── View switching ── */
+  function switchView(view, el, statusFilter) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+    el.classList.add('active');
+
+    if (statusFilter) {
+      document.getElementById('status-filter').value = statusFilter;
+      currentStatus = statusFilter;
+      currentPage = 1;
+    }
+
+    if (view === 'dashboard') {
+      document.getElementById('view-dashboard').classList.add('active');
+      document.getElementById('topbar-title').textContent = 'Dashboard';
+      loadStats();
+      loadTable('recent-tbody', 'page-info', 'btn-prev', 'btn-next');
+    } else {
+      document.getElementById('view-list').classList.add('active');
+      document.getElementById('topbar-title').textContent = 'รายการแบบสอบถาม';
+      loadList();
+    }
+  }
+
+  function refresh() {
+    loadStats();
+    loadTable('recent-tbody', 'page-info', 'btn-prev', 'btn-next');
+    if (document.getElementById('view-list').classList.contains('active')) loadList();
+  }
+
+  /* ── Stats ── */
+  async function loadStats() {
+    try {
+      const res = await fetch(`${API}/stats`);
+      const d = await res.json();
+      document.getElementById('s-total').textContent = d.total ?? '—';
+      document.getElementById('s-today').textContent = d.today ?? '—';
+      document.getElementById('s-age').textContent   = d.avgAge ?? '—';
+      const pending = (d.byStatus.find(s => s.status === 'new') || {}).n || 0;
+      document.getElementById('s-pending').textContent = pending;
+
+      renderBarChart('chart-status', d.byStatus.map(s => ({
+        label: statusLabels[s.status] || s.status, count: s.n
+      })));
+      renderBarChart('chart-occ', d.byOccupation.map(o => ({
+        label: occLabels[o.occupation] || o.occupation || 'ไม่ระบุ', count: o.n
+      })));
+    } catch (e) { console.error(e); }
+  }
+
+  function renderBarChart(containerId, items) {
+    const el = document.getElementById(containerId);
+    if (!items.length) { el.innerHTML = '<p style="font-size:12px;color:var(--muted)">ยังไม่มีข้อมูล</p>'; return; }
+    const max = Math.max(...items.map(i => i.count));
+    el.innerHTML = items.map(i => `
+      <div class="bar-row">
+        <span class="bar-label">${i.label}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${max ? (i.count/max*100) : 0}%"></div></div>
+        <span class="bar-count">${i.count}</span>
+      </div>`).join('');
+  }
+
+  /* ── Table ── */
+  async function loadTable(tbodyId, pageInfoId, prevId, nextId) {
+    currentStatus = document.getElementById('status-filter').value;
+    currentSearch = document.getElementById('search-input').value;
+    try {
+      const params = new URLSearchParams({ page: currentPage, limit: 15, status: currentStatus });
+      if (currentSearch) params.append('search', currentSearch);
+      const res = await fetch(`${API}/submissions?${params}`);
+      const { data, total } = await res.json();
+      renderTable(tbodyId, data);
+      const pages = Math.ceil(total / 15);
+      document.getElementById(pageInfoId).textContent = `${total} รายการ | หน้า ${currentPage}/${pages || 1}`;
+      document.getElementById(prevId).disabled = currentPage <= 1;
+      document.getElementById(nextId).disabled = currentPage >= pages;
+    } catch (e) {
+      document.getElementById(tbodyId).innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">⚠️ ไม่สามารถเชื่อมต่อ server ได้</td></tr>';
+    }
+  }
+
+  function loadList() {
+    currentPage = 1;
+    loadTable('list-tbody', 'list-page-info', 'list-btn-prev', 'list-btn-next');
+  }
+
+  function changePage(dir) {
+    currentPage += dir;
+    const isDashboard = document.getElementById('view-dashboard').classList.contains('active');
+    if (isDashboard) loadTable('recent-tbody', 'page-info', 'btn-prev', 'btn-next');
+    else loadTable('list-tbody', 'list-page-info', 'list-btn-prev', 'list-btn-next');
+  }
+
+  function renderTable(tbodyId, rows) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="icon">📭</div><p>ยังไม่มีรายการ</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => `
+      <tr onclick="openDrawer(${r.id})">
+        <td class="id-col">#${r.id}</td>
+        <td class="name-col">${r.full_name || '—'}</td>
+        <td>
+          ${r.gender ? `<span class="gender-dot ${r.gender}"></span>` : ''}
+          ${r.age ? r.age + ' ปี' : '—'}
+          ${r.gender ? '(' + (genderLabel[r.gender] || r.gender) + ')' : ''}
+        </td>
+        <td>${r.mobile || '—'}</td>
+        <td>${r.sum_assured || '—'}</td>
+        <td><span class="badge badge-${r.status}">${statusLabels[r.status] || r.status}</span></td>
+        <td>${r.created_at?.slice(0, 10) || '—'}</td>
+      </tr>`).join('');
+  }
+
+  /* ── Drawer ── */
+  async function openDrawer(id) {
+    currentSubmissionId = id;
+    document.getElementById('drawer-overlay').classList.add('open');
+    document.getElementById('drawer').classList.add('open');
+    document.getElementById('drawer-body').innerHTML = '<div class="spinner"></div>';
+    document.getElementById('drawer-title').textContent = 'กำลังโหลด...';
+
+    try {
+      const res = await fetch(`${API}/submissions/${id}`);
+      const d = await res.json();
+      document.getElementById('drawer-title').textContent = d.full_name || 'ผู้ตอบแบบสอบถาม #' + id;
+      renderStatusSelect(d.status);
+      renderDetail(d);
+    } catch (e) {
+      document.getElementById('drawer-body').innerHTML = '<p style="color:red;padding:20px">โหลดข้อมูลไม่สำเร็จ</p>';
+    }
+  }
+
+  function closeDrawer() {
+    document.getElementById('drawer-overlay').classList.remove('open');
+    document.getElementById('drawer').classList.remove('open');
+    currentSubmissionId = null;
+  }
+
+  function renderStatusSelect(current) {
+    const sel = document.getElementById('drawer-status');
+    sel.innerHTML = Object.entries(statusLabels).map(([v, l]) =>
+      `<option value="${v}" ${v === current ? 'selected' : ''}>${l}</option>`).join('');
+  }
+
+  async function updateStatus() {
+    if (!currentSubmissionId) return;
+    const status = document.getElementById('drawer-status').value;
+    await fetch(`${API}/submissions/${currentSubmissionId}/status`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status })
+    });
+    refresh();
+  }
+
+  async function addNote() {
+    const note = document.getElementById('note-input').value.trim();
+    if (!note || !currentSubmissionId) return;
+    await fetch(`${API}/submissions/${currentSubmissionId}/notes`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note })
+    });
+    document.getElementById('note-input').value = '';
+    openDrawer(currentSubmissionId);
+  }
+
+  function renderDetail(d) {
+    const p = d.parsed?.personal || {};
+    const h = d.parsed?.health || {};
+    const f = d.parsed?.occupation_finance || {};
+    const ins = d.parsed?.insurance_needs || {};
+    const kyc = d.parsed?.kyc || {};
+    const con = d.parsed?.consent || {};
+    const benes = d.parsed?.beneficiaries || [];
+
+    const field = (label, val) => `
+      <div class="detail-item">
+        <dt>${label}</dt>
+        <dd>${val || '<span style="color:var(--muted)">—</span>'}</dd>
+      </div>`;
+
+    const tags = arr => arr && arr.length && arr[0]
+      ? `<div class="tag-list">${arr.map(v => `<span class="tag">${v}</span>`).join('')}</div>`
+      : '<span style="color:var(--muted)">—</span>';
+
+    const yesNo = v => v === 'yes' ? '✅ ใช่' : v === 'no' ? '❌ ไม่' : v || '—';
+
+    document.getElementById('drawer-body').innerHTML = `
+      <!-- Personal -->
+      <div class="detail-section">
+        <h3>ข้อมูลส่วนบุคคล</h3>
+        <div class="detail-grid">
+          ${field('ชื่อ-นามสกุล', (p.first_name_th || '') + ' ' + (p.last_name_th || ''))}
+          ${field('ชื่อ (EN)', (p.first_name_en || '') + ' ' + (p.last_name_en || ''))}
+          ${field('วันเกิด', p.dob)} ${field('อายุ', p.age ? p.age + ' ปี' : null)}
+          ${field('เพศ', genderLabel[p.gender] || p.gender)}
+          ${field('สถานภาพ', p.marital_status)}
+          ${field('บัตรประชาชน', p.national_id)}
+          ${field('สัญชาติ', p.nationality)}
+          ${field('เบอร์โทร', p.mobile)} ${field('อีเมล', p.email)}
+          ${field('จำนวนบุตร', p.children != null ? p.children + ' คน' : null)}
+        </div>
+        ${field('ที่อยู่', [p.address, p.sub_district, p.district, p.province, p.postal_code].filter(Boolean).join(' '))}
+      </div>
+
+      <!-- Health -->
+      <div class="detail-section">
+        <h3>ข้อมูลสุขภาพ</h3>
+        <div class="detail-grid cols-3">
+          ${field('น้ำหนัก', h.weight ? h.weight + ' กก.' : null)}
+          ${field('ส่วนสูง', h.height ? h.height + ' ซม.' : null)}
+          ${field('BMI', h.bmi)}
+          ${field('การสูบบุหรี่', h.smoking === 'never' ? 'ไม่สูบ' : h.smoking === 'ex' ? 'เคยสูบ' : h.smoking === 'current' ? '🚬 สูบอยู่' : null)}
+          ${field('แอลกอฮอล์', h.alcohol === 'never' ? 'ไม่ดื่ม' : h.alcohol === 'social' ? 'บางครั้ง' : h.alcohol === 'regular' ? '🍺 ประจำ' : null)}
+          ${field('ออกกำลังกาย', h.exercise)}
+        </div>
+        <div style="margin-top:10px">${field('โรคประจำตัว', tags(h.disease_history))}</div>
+        ${h.disease_detail ? field('รายละเอียดโรค', h.disease_detail) : ''}
+        ${field('ประวัติครอบครัว', tags(h.family_disease))}
+        ${field('เคยพักรักษาในโรงพยาบาล', yesNo(h.hospitalized))}
+        ${h.hospitalized_detail ? field('รายละเอียด', h.hospitalized_detail) : ''}
+        ${field('กำลังรับประทานยา', yesNo(h.on_medication))}
+        ${h.medication_detail ? field('ยาที่รับประทาน', h.medication_detail) : ''}
+      </div>
+
+      <!-- Occupation / Finance -->
+      <div class="detail-section">
+        <h3>อาชีพและการเงิน</h3>
+        <div class="detail-grid">
+          ${field('ประเภทอาชีพ', occLabels[f.occupation_type] || f.occupation_type)}
+          ${field('บริษัท/สถานประกอบการ', f.employer)}
+          ${field('ตำแหน่ง', f.job_title)}
+          ${field('อุตสาหกรรม', f.industry)}
+          ${field('รายได้รวม/ปี', f.annual_income)}
+          ${field('ทรัพย์สินสุทธิ', f.net_worth)}
+          ${field('หนี้สิน/เดือน', f.monthly_debt ? f.monthly_debt + ' บาท' : null)}
+          ${field('ผู้พึ่งพา', f.dependents != null ? f.dependents + ' คน' : null)}
+        </div>
+        ${field('แหล่งรายได้', tags(f.income_sources))}
+      </div>
+
+      <!-- Beneficiaries -->
+      <div class="detail-section">
+        <h3>ผู้รับผลประโยชน์</h3>
+        ${benes.filter(b => b.name).map((b, i) => `
+          <div style="background:#f7f9fd;border:1px solid var(--border);border-radius:7px;padding:10px 14px;margin-bottom:8px;font-size:12px">
+            <strong>${i+1}. ${b.name}</strong> — ${b.relation || ''} &nbsp;|&nbsp; สัดส่วน: <strong>${b.pct || 0}%</strong>
+            ${b.id ? ` &nbsp;|&nbsp; บัตร: ${b.id}` : ''}
+          </div>`).join('') || '<p style="color:var(--muted);font-size:12px">—</p>'}
+      </div>
+
+      <!-- Insurance Needs -->
+      <div class="detail-section">
+        <h3>ความต้องการประกัน</h3>
+        <div class="detail-grid">
+          ${field('ทุนประกัน', ins.sum_assured)}
+          ${field('งบเบี้ย/ปี', ins.premium_budget)}
+          ${field('ระยะเวลาชำระ', ins.payment_term)}
+          ${field('ความถี่ชำระ', ins.payment_freq)}
+          ${field('ความเสี่ยงการลงทุน', ins.risk_appetite)}
+        </div>
+        ${field('วัตถุประสงค์', tags(ins.purposes))}
+        ${field('ประเภทกรมธรรม์', tags(ins.types))}
+        ${field('สัญญาเพิ่มเติม (Rider)', tags(ins.riders))}
+      </div>
+
+      <!-- KYC -->
+      <div class="detail-section">
+        <h3>KYC / AML</h3>
+        <div class="detail-grid">
+          ${field('มีประกันเดิม', yesNo(kyc.has_existing))}
+          ${kyc.exist_company ? field('บริษัทเดิม', kyc.exist_company) : ''}
+          ${kyc.exist_sum ? field('ทุนประกันเดิม', kyc.exist_sum + ' บาท') : ''}
+          ${field('เคยถูกปฏิเสธ', yesNo(kyc.rejected))}
+          ${field('PEP', yesNo(kyc.is_pep))}
+          ${field('FATCA', yesNo(kyc.is_fatca))}
+          ${field('ถิ่นฐานทางภาษี', kyc.tax_residence)}
+          ${field('TIN', kyc.tin)}
+          ${field('วัตถุประสงค์ชำระเบี้ย', kyc.premium_purpose)}
+        </div>
+      </div>
+
+      <!-- Consent -->
+      <div class="detail-section">
+        <h3>ความยินยอม</h3>
+        <div class="detail-grid">
+          ${field('PDPA', con.data ? '✅ ยินยอม' : '❌ ไม่ยินยอม')}
+          ${field('ข้อมูลสุขภาพ', con.health ? '✅ ยินยอม' : '❌ ไม่ยินยอม')}
+          ${field('รับการตลาด', con.marketing ? '✅ ยินยอม' : '❌ ไม่ยินยอม')}
+          ${field('คำรับรอง', con.declaration ? '✅ รับรอง' : '❌ ไม่รับรอง')}
+          ${field('ลงนามโดย', con.sig_name)}
+          ${field('วันที่ลงนาม', con.sig_date)}
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="detail-section">
+        <h3>บันทึกของเจ้าหน้าที่</h3>
+        ${d.notes && d.notes.length
+          ? `<div class="notes-list">${d.notes.map(n => `
+              <div class="note-item">
+                <div class="note-date">📝 ${n.created_at}</div>
+                <div class="note-text">${n.note}</div>
+              </div>`).join('')}</div>`
+          : '<p style="color:var(--muted);font-size:12px">ยังไม่มีบันทึก</p>'}
+      </div>
+    `;
+  }
+
+  /* ── Search debounce ── */
+  function debounceSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      currentPage = 1;
+      const isDashboard = document.getElementById('view-dashboard').classList.contains('active');
+      if (isDashboard) loadTable('recent-tbody', 'page-info', 'btn-prev', 'btn-next');
+      else loadList();
+    }, 350);
+  }
+
+  /* ── Init ── */
+  loadStats();
+  loadTable('recent-tbody', 'page-info', 'btn-prev', 'btn-next');
+</script>
+</body>
+</html>
